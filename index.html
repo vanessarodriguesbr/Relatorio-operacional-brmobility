@@ -1,555 +1,725 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Brmobility — Relatório Operacional</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.umd.min.js"></script>
+<meta charset="UTF-8">
+<title>BRMobility - Dashboard Operacional</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  ::-webkit-scrollbar{width:6px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:3px}
-  body{font-family:Inter,-apple-system,sans-serif}
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: 'Inter', -apple-system, sans-serif; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--card-border); border-radius:3px; }
+  .app { display:flex; height:100vh; background:var(--bg); }
+  .sidebar { width:240px; background:var(--sidebar-bg); border-right:1px solid var(--card-border); display:flex; flex-direction:column; flex-shrink:0; }
+  .sidebar-header { padding:20px 18px 16px; border-bottom:1px solid var(--card-border); display:flex; align-items:center; gap:10px; }
+  .logo-box { width:32px; height:32px; border-radius:8px; background:#4f63f7; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0; }
+  .brand-title { font-size:13px; font-weight:700; color:var(--text-primary); line-height:1.2; }
+  .brand-sub { font-size:10px; color:var(--text-muted); }
+  nav { flex:1; padding:10px; overflow-y:auto; }
+  .nav-btn { width:100%; display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; border:none; cursor:pointer; background:transparent; color:var(--text-muted); font-size:13px; margin-bottom:2px; text-align:left; }
+  .nav-btn.active { background:var(--nav-active); color:#4f63f7; font-weight:600; }
+  .nav-btn .ic { width:16px; text-align:center; flex-shrink:0; }
+  .nav-btn .lbl { flex:1; line-height:1.2; }
+  .sidebar-footer { padding:14px 12px; border-top:1px solid var(--card-border); }
+  .theme-btn { width:100%; display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:8px; border:1px solid var(--card-border); background:var(--filter-bg); cursor:pointer; color:var(--text-primary); font-size:12px; }
+  .toggle-track { width:32px; height:18px; border-radius:9px; position:relative; transition:background .2s; }
+  .toggle-dot { position:absolute; top:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:left .2s; }
+  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .header { background:var(--header-bg); border-bottom:1px solid var(--card-border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; flex-wrap:wrap; gap:10px; }
+  .header-title { font-size:16px; font-weight:700; color:var(--text-primary); line-height:1.2; }
+  .header-sub { font-size:12px; color:var(--text-muted); }
+  .filters { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .filter-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--card-border); background:var(--filter-bg); color:var(--text-muted); font-size:12px; cursor:pointer; }
+  .filter-btn.active { border-color:#4f63f7; background:#4f63f7; color:#fff; font-weight:600; }
+  .content { flex:1; overflow-y:auto; padding:24px 28px; }
+  .card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; padding:20px 24px; margin-bottom:24px; }
+  .section-title { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin:0 0 14px; }
+  .block-label { font-size:11px; font-weight:700; color:var(--text-muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:12px; }
+  .block-divider { border-bottom:1px solid var(--card-border); padding-bottom:20px; margin-bottom:20px; }
+  .hbar-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .hbar-label { font-size:12px; color:var(--text-muted); font-weight:600; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hbar-track { flex:1; background:var(--bar-bg); border-radius:20px; overflow:hidden; position:relative; }
+  .hbar-fill { height:100%; border-radius:20px; transition:width .4s ease; position:relative; }
+  .hbar-dot { position:absolute; right:4px; top:50%; transform:translateY(-50%); width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,0.6); }
+  .hbar-value { width:46px; font-size:12px; color:var(--text-primary); font-weight:600; text-align:right; flex-shrink:0; }
+  .kpi-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; }
+  .kpi-card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px; padding:16px 20px; flex:1 1 160px; }
+  .kpi-label { font-size:12px; color:var(--text-muted); margin:0 0 6px; }
+  .kpi-value { font-size:26px; font-weight:700; margin:0; }
+  .kpi-sub { font-size:11px; color:var(--text-muted); margin-top:4px; }
+  .mini-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; }
+  .mini-card { flex:1 1 200px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px; padding:14px 16px; }
+  .mini-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+  .mini-chart-wrap { height:160px; position:relative; }
+  .insight-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px; }
+  .insight-box { border-radius:12px; padding:16px 18px; }
+  .insight-title { font-weight:700; font-size:13px; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+  .insight-item { font-size:12px; margin:4px 0; padding-left:14px; position:relative; }
+  .insight-item:before { content:"•"; position:absolute; left:0; }
+  .diag-item { border-left:3px solid #5b7cf5; padding-left:14px; margin-bottom:16px; }
+  .diag-title { font-weight:600; font-size:13px; margin:0 0 4px; color:var(--text-primary); }
+  .diag-text { font-size:12px; color:var(--text-muted); margin:0; line-height:1.6; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { padding:8px 10px; text-align:left; color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:2px solid var(--card-border); }
+  td { padding:9px 10px; color:var(--text-primary); border-bottom:1px solid var(--card-border); }
+  .badge { padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600; }
+  .rank-num { width:24px; height:24px; border-radius:6px; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .rank-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .rank-bar-track { height:6px; background:var(--bar-bg); border-radius:4px; overflow:hidden; margin-top:3px; }
+  .rank-bar-fill { height:100%; border-radius:4px; }
+  .risk-box { border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+  .risk-ref { font-weight:700; font-size:13px; margin:0 0 6px; display:flex; align-items:center; gap:6px; }
+  .risk-text { font-size:12px; margin:0 0 6px; color:#374151; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .tooltip-box { position:absolute; background:var(--tt-bg); border:1px solid var(--tt-border); border-radius:8px; padding:10px 14px; font-size:12px; color:var(--tt-text); line-height:1.7; min-width:170px; pointer-events:none; z-index:10; box-shadow:0 4px 14px rgba(0,0,0,0.15); }
 </style>
 </head>
 <body>
 <div id="root"></div>
-<script>
-const {useState} = React;
-const {AreaChart,Area,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer} = Recharts;
 
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+// DADOS
+// ─────────────────────────────────────────────────────────────────────────
 const mockData = {
-  chamados:[
-    {mes:"Jan",chamados:184,atendidos:171,percAtendidos:0.93,noSLA:155,percSLA:0.84},
-    {mes:"Fev",chamados:156,atendidos:128,percAtendidos:0.82,noSLA:133,percSLA:0.85},
-    {mes:"Mar",chamados:183,atendidos:148,percAtendidos:0.81,noSLA:130,percSLA:0.71},
-    {mes:"Abr",chamados:213,atendidos:159,percAtendidos:0.74,noSLA:121,percSLA:0.56},
-    {mes:"Mai",chamados:168,atendidos:134,percAtendidos:0.80,noSLA:123,percSLA:0.73},
+  chamados: [
+    { mes: "Jan", chamados: 184, atendidos: 171, percAtendidos: 0.93, noSLA: 155, percSLA: 0.84 },
+    { mes: "Fev", chamados: 156, atendidos: 128, percAtendidos: 0.82, noSLA: 133, percSLA: 0.85 },
+    { mes: "Mar", chamados: 183, atendidos: 148, percAtendidos: 0.81, noSLA: 130, percSLA: 0.71 },
+    { mes: "Abr", chamados: 213, atendidos: 159, percAtendidos: 0.74, noSLA: 121, percSLA: 0.56 },
+    { mes: "Mai", chamados: 168, atendidos: 134, percAtendidos: 0.80, noSLA: 123, percSLA: 0.73 },
   ],
-  modelos:{
-    Jan:[{pos:"1º",modelo:"S9",qtd:41,perc:22},{pos:"2º",modelo:"S8",qtd:38,perc:21},{pos:"3º",modelo:"I2",qtd:21,perc:11},{pos:"4º",modelo:"S10",qtd:20,perc:11},{pos:"5º",modelo:"BR8",qtd:15,perc:8}],
-    Fev:[{pos:"1º",modelo:"S8",qtd:26,perc:17},{pos:"2º",modelo:"I2",qtd:25,perc:16},{pos:"3º",modelo:"S9",qtd:23,perc:15},{pos:"4º",modelo:"S10",qtd:15,perc:10},{pos:"5º",modelo:"BR8",qtd:11,perc:7}],
-    Mar:[{pos:"1º",modelo:"S9",qtd:46,perc:25},{pos:"2º",modelo:"S8",qtd:28,perc:15},{pos:"3º",modelo:"I2",qtd:24,perc:13},{pos:"4º",modelo:"BR8",qtd:22,perc:12},{pos:"5º",modelo:"S10",qtd:18,perc:10}],
-    Abr:[{pos:"1º",modelo:"S9",qtd:45,perc:21},{pos:"2º",modelo:"S8",qtd:35,perc:16},{pos:"3º",modelo:"I2",qtd:23,perc:11},{pos:"4º",modelo:"S10",qtd:19,perc:9},{pos:"5º",modelo:"BR8",qtd:16,perc:7}],
-    Mai:[{pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",qtd:22,perc:13},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
+  modelos: {
+    Jan: [{ pos:"1º",modelo:"S9",qtd:41,perc:22},{pos:"2º",modelo:"S8",qtd:38,perc:21},{pos:"3º",modelo:"I2",qtd:21,perc:11},{pos:"4º",modelo:"S10",qtd:20,perc:11},{pos:"5º",modelo:"BR8",qtd:15,perc:8}],
+    Fev: [{ pos:"1º",modelo:"S8",qtd:26,perc:17},{pos:"2º",modelo:"I2",qtd:25,perc:16},{pos:"3º",modelo:"S9",qtd:23,perc:15},{pos:"4º",modelo:"S10",qtd:15,perc:10},{pos:"5º",modelo:"BR8",qtd:11,perc:7}],
+    Mar: [{ pos:"1º",modelo:"S9",qtd:46,perc:25},{pos:"2º",modelo:"S8",qtd:28,perc:15},{pos:"3º",modelo:"I2",qtd:24,perc:13},{pos:"4º",modelo:"BR8",qtd:22,perc:12},{pos:"5º",modelo:"S10",qtd:18,perc:10}],
+    Abr: [{ pos:"1º",modelo:"S9",qtd:45,perc:21},{pos:"2º",modelo:"S8",qtd:35,perc:16},{pos:"3º",modelo:"I2",qtd:23,perc:11},{pos:"4º",modelo:"S10",qtd:19,perc:9},{pos:"5º",modelo:"BR8",qtd:16,perc:7}],
+    Mai: [{ pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",qtd:22,perc:13},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
   },
-  sintomas:{
-    Jan:[{pos:"1º",sintoma:"Pneus",qtd:47,perc:26},{pos:"2º",sintoma:"Carregadores",qtd:35,perc:19},{pos:"3º",sintoma:"Inclinando/girando",qtd:14,perc:8},{pos:"4º",sintoma:"Torre/postura",qtd:14,perc:8},{pos:"5º",sintoma:"Não carrega/bateria",qtd:13,perc:7}],
-    Fev:[{pos:"1º",sintoma:"Pneus",qtd:35,perc:22},{pos:"2º",sintoma:"Pane/desligamento",qtd:12,perc:8},{pos:"3º",sintoma:"Improcedente",qtd:12,perc:8},{pos:"4º",sintoma:"Carregador",qtd:11,perc:7},{pos:"5º",sintoma:"Controle",qtd:8,perc:5}],
-    Mar:[{pos:"1º",sintoma:"Pneus",qtd:38,perc:21},{pos:"2º",sintoma:"Bateria/não carrega",qtd:21,perc:11},{pos:"3º",sintoma:"Guidão/postura",qtd:21,perc:11},{pos:"4º",sintoma:"Pane/desligamento",qtd:20,perc:11},{pos:"5º",sintoma:"Carregador",qtd:20,perc:11}],
-    Abr:[{pos:"1º",sintoma:"Pneus",qtd:52,perc:24},{pos:"2º",sintoma:"Pane/desligamento",qtd:31,perc:14},{pos:"3º",sintoma:"Carregador",qtd:27,perc:13},{pos:"4º",sintoma:"Guidão/postura",qtd:24,perc:11},{pos:"5º",sintoma:"Não carrega/bateria",qtd:17,perc:8}],
-    Mai:[{pos:"1º",sintoma:"Pneus",qtd:25,perc:21},{pos:"2º",sintoma:"Pane/desligamento",qtd:32,perc:19},{pos:"3º",sintoma:"Guidão/postura",qtd:31,perc:18},{pos:"4º",sintoma:"Não carrega/bateria",qtd:15,perc:9},{pos:"5º",sintoma:"Controle",qtd:8,perc:5}],
+  sintomas: {
+    Jan: [{ pos:"1º",sintoma:"Pneus",qtd:47,perc:26},{pos:"2º",sintoma:"Carregadores",qtd:35,perc:19},{pos:"3º",sintoma:"Inclinando/girando",qtd:14,perc:8},{pos:"4º",sintoma:"Torre/postura",qtd:14,perc:8},{pos:"5º",sintoma:"Não carrega/bateria",qtd:13,perc:7}],
+    Fev: [{ pos:"1º",sintoma:"Pneus",qtd:35,perc:22},{pos:"2º",sintoma:"Pane/desligamento",qtd:12,perc:8},{pos:"3º",sintoma:"Improcedente",qtd:12,perc:8},{pos:"4º",sintoma:"Carregador",qtd:11,perc:7},{pos:"5º",sintoma:"Controle",qtd:8,perc:5}],
+    Mar: [{ pos:"1º",sintoma:"Pneus",qtd:38,perc:21},{pos:"2º",sintoma:"Bateria/não carrega",qtd:21,perc:11},{pos:"3º",sintoma:"Guidão/postura",qtd:21,perc:11},{pos:"4º",sintoma:"Pane/desligamento",qtd:20,perc:11},{pos:"5º",sintoma:"Carregador",qtd:20,perc:11}],
+    Abr: [{ pos:"1º",sintoma:"Pneus",qtd:52,perc:24},{pos:"2º",sintoma:"Pane/desligamento",qtd:31,perc:14},{pos:"3º",sintoma:"Carregador",qtd:27,perc:13},{pos:"4º",sintoma:"Guidão/postura",qtd:24,perc:11},{pos:"5º",sintoma:"Não carrega/bateria",qtd:17,perc:8}],
+    Mai: [{ pos:"1º",sintoma:"Pneus",qtd:25,perc:21},{pos:"2º",sintoma:"Pane/desligamento",qtd:32,perc:19},{pos:"3º",sintoma:"Guidão/postura",qtd:31,perc:18},{pos:"4º",sintoma:"Não carrega/bateria",qtd:15,perc:9},{pos:"5º",sintoma:"Controle",qtd:8,perc:5}],
   },
-  desligamentos:[
-    {mes:"Jan",desligamentos:3,perc:0.02},{mes:"Fev",desligamentos:17,perc:0.11},
-    {mes:"Mar",desligamentos:12,perc:0.07},{mes:"Abr",desligamentos:18,perc:0.08},{mes:"Mai",desligamentos:18,perc:0.11},
+  desligamentos: [
+    { mes:"Jan",desligamentos:3,perc:0.02},{ mes:"Fev",desligamentos:17,perc:0.11},
+    { mes:"Mar",desligamentos:12,perc:0.07},{ mes:"Abr",desligamentos:18,perc:0.08},{ mes:"Mai",desligamentos:18,perc:0.11},
   ],
-  substituicoes:[
-    {mes:"Jan",trocas:29,perc:0.16},{mes:"Fev",trocas:25,perc:0.16},
-    {mes:"Mar",trocas:28,perc:0.15},{mes:"Abr",trocas:17,perc:0.08},{mes:"Mai",trocas:34,perc:0.20},
+  substituicoes: [
+    { mes:"Jan",trocas:29,perc:0.16},{ mes:"Fev",trocas:25,perc:0.16},
+    { mes:"Mar",trocas:28,perc:0.15},{ mes:"Abr",trocas:17,perc:0.08},{ mes:"Mai",trocas:34,perc:0.20},
   ],
-  custos:[
-    {mes:"Jan",chamados:184,faturamento:661557.44,desconto:1815.95,transportadora:27416.28,ats:16974.67},
-    {mes:"Fev",chamados:156,faturamento:658323.81,desconto:0,transportadora:8396.77,ats:12995.80},
-    {mes:"Mar",chamados:183,faturamento:665968.97,desconto:8628.41,transportadora:5862.51,ats:13769.14},
-    {mes:"Abr",chamados:213,faturamento:665202.69,desconto:12658.60,transportadora:19294.81,ats:16140.92},
-    {mes:"Mai",chamados:168,faturamento:672777.37,desconto:7615.61,transportadora:17316.04,ats:17934.87},
+  custos: [
+    { mes:"Jan",chamados:184,faturamento:661557.44,desconto:1815.95,transportadora:27416.28,ats:16974.67},
+    { mes:"Fev",chamados:156,faturamento:658323.81,desconto:0,transportadora:8396.77,ats:12995.80},
+    { mes:"Mar",chamados:183,faturamento:665968.97,desconto:8628.41,transportadora:5862.51,ats:13769.14},
+    { mes:"Abr",chamados:213,faturamento:665202.69,desconto:12658.60,transportadora:19294.81,ats:16140.92},
+    { mes:"Mai",chamados:168,faturamento:672777.37,desconto:7615.61,transportadora:17316.04,ats:17934.87},
   ],
 };
 
-const MESES=["Todos","Jan","Fev","Mar","Abr","Mai"];
-const MES_FULL={Jan:"Janeiro",Fev:"Fevereiro",Mar:"Março",Abr:"Abril",Mai:"Maio"};
-const NAV=[
-  {id:"visao",label:"Visão Geral"},
-  {id:"chamados",label:"Chamados"},
-  {id:"modelos",label:"Modelos"},
-  {id:"sintomas",label:"Sintomas"},
-  {id:"desligamentos",label:"Desligamentos"},
-  {id:"trocas",label:"Trocas de Equipamentos"},
-  {id:"custos",label:"Custos Operacionais"},
-  {id:"atencao",label:"Pontos de Atenção"},
+const MESES = ["Todos","Jan","Fev","Mar","Abr","Mai"];
+const MES_FULL = { Jan:"Janeiro",Fev:"Fevereiro",Mar:"Março",Abr:"Abril",Mai:"Maio" };
+
+const NAV = [
+  { id:"visao", label:"Visão Geral", icon:"🏠" },
+  { id:"chamados", label:"Chamados", icon:"📞" },
+  { id:"modelos", label:"Modelos", icon:"⚡" },
+  { id:"sintomas", label:"Sintomas", icon:"🔧" },
+  { id:"desligamentos", label:"Desligamentos", icon:"🔌" },
+  { id:"trocas", label:"Trocas de Equipamentos", icon:"🔄" },
+  { id:"custos", label:"Custos Operacionais", icon:"💲" },
+  { id:"atencao", label:"Pontos de Atenção", icon:"⚠️" },
 ];
 
-const fmt=v=>v?.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0})??"-";
-const fmtR=v=>v!=null?`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"-";
-const fmtPct=v=>v!=null?`${(v*100).toFixed(1)}%`:"-";
+// ─────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────
+const fmt = v => (v==null?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
+const fmtR = v => (v==null?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
+const fmtPct = v => (v==null?"-":`${(v*100).toFixed(1)}%`);
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-function HBar({value,max,color,label,valueLabel,height=18,labelWidth=28}){
-  const pct=Math.min((value/max)*100,100);
-  return React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:8}},
-    React.createElement("span",{style:{width:labelWidth,fontSize:12,color:"var(--text-muted)",fontWeight:600,flexShrink:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},label),
-    React.createElement("div",{style:{flex:1,height,background:"var(--bar-bg)",borderRadius:height/2,overflow:"hidden"}},
-      React.createElement("div",{style:{height:"100%",width:`${pct}%`,background:color,borderRadius:height/2,transition:"width 0.4s ease"}})
-    ),
-    React.createElement("span",{style:{width:42,fontSize:12,color:"var(--text-primary)",fontWeight:600,textAlign:"right",flexShrink:0}},valueLabel)
-  );
-}
+let state = { aba: "visao", mes: "Todos", dark: true };
 
-function KpiCard({label,value,sub,color="#5b7cf5"}){
-  return React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:12,padding:"16px 20px",flex:"1 1 160px"}},
-    React.createElement("p",{style:{fontSize:12,color:"var(--text-muted)",margin:"0 0 6px"}},label),
-    React.createElement("p",{style:{fontSize:26,fontWeight:700,color,margin:0}},value),
-    sub&&React.createElement("p",{style:{fontSize:11,color:"var(--text-muted)",marginTop:4}},sub)
-  );
-}
-
-function SectionTitle({children}){
-  return React.createElement("h3",{style:{fontSize:13,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em",color:"var(--text-muted)",margin:"0 0 14px"}},children);
-}
-
-function ChamadosTable({data}){
-  return React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:13}},
-    React.createElement("thead",null,
-      React.createElement("tr",{style:{borderBottom:"2px solid var(--card-border)"}},
-        ["Mês","Chamados","Atendidos","% Atend.","No SLA","% SLA"].map(h=>
-          React.createElement("th",{key:h,style:{padding:"8px 10px",textAlign:"left",color:"var(--text-muted)",fontWeight:600,fontSize:11,textTransform:"uppercase"}},h)
-        )
-      )
-    ),
-    React.createElement("tbody",null,
-      data.map((row,i)=>
-        React.createElement("tr",{key:i,style:{borderBottom:"1px solid var(--card-border)"}},
-          React.createElement("td",{style:{padding:"9px 10px",fontWeight:600,color:"var(--text-primary)"}},MES_FULL[row.mes]||row.mes),
-          React.createElement("td",{style:{padding:"9px 10px",color:"var(--text-primary)"}},fmt(row.chamados)),
-          React.createElement("td",{style:{padding:"9px 10px",color:"var(--text-primary)"}},fmt(row.atendidos)),
-          React.createElement("td",{style:{padding:"9px 10px",color:"var(--text-primary)"}},fmtPct(row.percAtendidos)),
-          React.createElement("td",{style:{padding:"9px 10px",color:"var(--text-primary)"}},fmt(row.noSLA)),
-          React.createElement("td",{style:{padding:"9px 10px"}},
-            React.createElement("span",{style:{background:row.percSLA>=0.8?"#dcfce7":row.percSLA>=0.7?"#fff7ed":"#fef2f2",color:row.percSLA>=0.8?"#15803d":row.percSLA>=0.7?"#c2410c":"#b91c1c",padding:"2px 8px",borderRadius:4,fontSize:12,fontWeight:600}},fmtPct(row.percSLA))
-          )
-        )
-      )
-    )
-  );
-}
-
-function TabChamados({mesFiltro}){
-  const allData=mockData.chamados;
-  const data=mesFiltro==="Todos"?allData:allData.filter(c=>c.mes===mesFiltro);
-  const maxC=Math.max(...allData.map(c=>c.chamados));
-  const maxA=Math.max(...allData.map(c=>c.atendidos));
-  if(mesFiltro==="Todos"){
-    return React.createElement("div",null,
-      React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24}},
-        React.createElement("div",{style:{borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20}},
-          React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"TOTAL DE CHAMADOS"),
-          data.map(c=>React.createElement(HBar,{key:c.mes,label:c.mes,value:c.chamados,max:maxC,color:"#5b7cf5",valueLabel:String(c.chamados),height:20}))
-        ),
-        React.createElement("div",{style:{borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20}},
-          React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"ATENDIDOS NO MÊS"),
-          data.map(c=>React.createElement(HBar,{key:c.mes,label:c.mes,value:c.atendidos,max:maxA,color:"#22c55e",valueLabel:String(c.atendidos),height:20}))
-        ),
-        React.createElement("div",null,
-          React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"SLA CUMPRIDO (%)"),
-          data.map(c=>React.createElement(HBar,{key:c.mes,label:c.mes,value:c.percSLA*100,max:100,color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round(c.percSLA*100)}%`,height:20}))
-        )
-      ),
-      React.createElement(ChamadosTable,{data})
-    );
-  }
-  return React.createElement("div",null,
-    React.createElement("div",{style:{display:"flex",gap:12,flexWrap:"wrap",marginBottom:24}},
-      data.map((row,i)=>[
-        React.createElement(KpiCard,{key:`ch${i}`,label:"Chamados",value:fmt(row.chamados),color:"#5b7cf5"}),
-        React.createElement(KpiCard,{key:`at${i}`,label:"Atendidos",value:fmt(row.atendidos),sub:fmtPct(row.percAtendidos),color:"#22c55e"}),
-        React.createElement(KpiCard,{key:`sl${i}`,label:"SLA",value:fmtPct(row.percSLA),color:row.percSLA>=0.8?"#22c55e":row.percSLA>=0.7?"#f97316":"#ef4444"}),
-        React.createElement(KpiCard,{key:`ns${i}`,label:"No SLA",value:fmt(row.noSLA),color:"#8b5cf6"}),
-      ])
-    ),
-    React.createElement(ChamadosTable,{data})
-  );
-}
-
-function TabModelos({mesFiltro}){
-  const colors=["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
-  const meses=mesFiltro==="Todos"?Object.keys(mockData.modelos):[mesFiltro];
-  if(mesFiltro==="Todos"){
-    const modelTotals={};
-    meses.forEach(m=>{mockData.modelos[m]?.forEach(r=>{modelTotals[r.modelo]=(modelTotals[r.modelo]||0)+r.qtd;});});
-    const maxTotal=Math.max(...Object.values(modelTotals));
-    const allModelos=["S9","S8","I2","S10","BR8"];
-    return React.createElement("div",null,
-      React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24}},
-        React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}},"ACUMULADO JAN–MAI"),
-        allModelos.map((m,i)=>React.createElement(HBar,{key:m,label:m,value:modelTotals[m]||0,max:maxTotal,color:colors[i],valueLabel:String(modelTotals[m]||0),height:22}))
-      ),
-      meses.map(m=>{
-        const rows=mockData.modelos[m]||[];
-        const maxQ=Math.max(...rows.map(r=>r.qtd));
-        return React.createElement("div",{key:m,style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"18px 22px",marginBottom:16}},
-          React.createElement("p",{style:{fontWeight:700,fontSize:13,color:"var(--text-primary)",marginBottom:12}},`${MES_FULL[m]} — Top 5 Modelos`),
-          rows.map((r,i)=>React.createElement(HBar,{key:i,label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:18}))
-        );
-      })
-    );
-  }
-  const rows=mockData.modelos[mesFiltro]||[];
-  const maxQ=Math.max(...rows.map(r=>r.qtd));
-  return React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px"}},
-    React.createElement("p",{style:{fontWeight:700,fontSize:14,color:"var(--text-primary)",marginBottom:16}},`${MES_FULL[mesFiltro]} — Top 5 Modelos`),
-    rows.map((r,i)=>React.createElement(HBar,{key:i,label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22}))
-  );
-}
-
-function TabSintomas({mesFiltro}){
-  const colors=["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
-  const meses=mesFiltro==="Todos"?Object.keys(mockData.sintomas):[mesFiltro];
-  if(mesFiltro==="Todos"){
-    const map={};
-    meses.forEach(m=>{mockData.sintomas[m]?.forEach(s=>{map[s.sintoma]=(map[s.sintoma]||0)+s.qtd;});});
-    const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8);
-    const maxVal=Math.max(...sorted.map(([,v])=>v));
-    const maxLen=Math.max(...sorted.map(([s])=>s.length));
-    const lw=Math.min(Math.max(maxLen*7,40),200);
-    return React.createElement("div",null,
-      React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24}},
-        React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}},"ACUMULADO JAN–MAI"),
-        sorted.map(([s,v],i)=>React.createElement(HBar,{key:s,label:s,value:v,max:maxVal,color:colors[i%colors.length],valueLabel:String(v),height:20,labelWidth:lw}))
-      ),
-      meses.map(m=>{
-        const rows=mockData.sintomas[m]||[];
-        const mq=Math.max(...rows.map(r=>r.qtd));
-        const ml=Math.max(...rows.map(r=>r.sintoma.length));
-        const mlw=Math.min(Math.max(ml*7,40),200);
-        return React.createElement("div",{key:m,style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"18px 22px",marginBottom:16}},
-          React.createElement("p",{style:{fontWeight:700,fontSize:13,color:"var(--text-primary)",marginBottom:12}},`${MES_FULL[m]} — Top 5 Sintomas`),
-          rows.map((r,i)=>React.createElement(HBar,{key:i,label:r.sintoma,value:r.qtd,max:mq,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:18,labelWidth:mlw}))
-        );
-      })
-    );
-  }
-  const rows=mockData.sintomas[mesFiltro]||[];
-  const mq=Math.max(...rows.map(r=>r.qtd));
-  const ml=Math.max(...rows.map(r=>r.sintoma.length));
-  const mlw=Math.min(Math.max(ml*7,40),200);
-  return React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px"}},
-    React.createElement("p",{style:{fontWeight:700,fontSize:14,color:"var(--text-primary)",marginBottom:16}},`${MES_FULL[mesFiltro]} — Top 5 Sintomas`),
-    rows.map((r,i)=>React.createElement(HBar,{key:i,label:r.sintoma,value:r.qtd,max:mq,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22,labelWidth:mlw}))
-  );
-}
-
-function TabDesligamentos({mesFiltro}){
-  const allData=mockData.desligamentos;
-  const data=mesFiltro==="Todos"?allData:allData.filter(d=>d.mes===mesFiltro);
-  const maxD=Math.max(...allData.map(d=>d.desligamentos));
-  const percDosC=d=>{const c=mockData.chamados.find(c=>c.mes===d.mes);return c?d.desligamentos/c.chamados:0;};
-  const maxP=Math.max(...allData.map(d=>percDosC(d)*100));
-  if(mesFiltro==="Todos"){
-    return React.createElement("div",null,
-      React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24}},
-        React.createElement("div",{style:{borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20}},
-          React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"DESLIGAMENTOS POR MÊS"),
-          data.map(d=>React.createElement(HBar,{key:d.mes,label:d.mes,value:d.desligamentos,max:maxD,color:"#ef4444",valueLabel:String(d.desligamentos),height:20}))
-        ),
-        React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"% DOS CHAMADOS"),
-        data.map(d=>React.createElement(HBar,{key:d.mes,label:d.mes,value:percDosC(d)*100,max:maxP,color:"#f97316",valueLabel:fmtPct(percDosC(d)),height:20}))
-      ),
-      React.createElement("div",{style:{display:"flex",gap:12,flexWrap:"wrap"}},
-        data.map((d,i)=>React.createElement(KpiCard,{key:i,label:MES_FULL[d.mes]||d.mes,value:fmt(d.desligamentos),sub:`${fmtPct(percDosC(d))} dos chamados`,color:"#ef4444"}))
-      )
-    );
-  }
-  return React.createElement("div",null,
-    React.createElement("div",{style:{display:"flex",gap:12,flexWrap:"wrap",marginBottom:28}},
-      data.map((d,i)=>React.createElement(KpiCard,{key:i,label:MES_FULL[d.mes]||d.mes,value:fmt(d.desligamentos),sub:`${fmtPct(percDosC(d))} dos chamados`,color:"#ef4444"}))
-    ),
-    React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px"}},
-      React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}},"HISTÓRICO JAN–MAI"),
-      React.createElement("div",{style:{borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20}},
-        allData.map(d=>React.createElement(HBar,{key:d.mes,label:d.mes,value:d.desligamentos,max:maxD,color:d.mes===mesFiltro?"#ef4444":"#f97316",valueLabel:String(d.desligamentos),height:20}))
-      ),
-      allData.map(d=>React.createElement(HBar,{key:d.mes,label:d.mes,value:percDosC(d)*100,max:maxP,color:d.mes===mesFiltro?"#ef4444":"#f97316",valueLabel:fmtPct(percDosC(d)),height:20}))
-    )
-  );
-}
-
-function TabTrocas({mesFiltro}){
-  const allData=mockData.substituicoes;
-  const data=mesFiltro==="Todos"?allData:allData.filter(d=>d.mes===mesFiltro);
-  const maxT=Math.max(...allData.map(s=>s.trocas));
-  const maxP=Math.max(...allData.map(s=>s.perc*100));
-  if(mesFiltro==="Todos"){
-    return React.createElement("div",null,
-      React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24}},
-        React.createElement("div",{style:{borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20}},
-          React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"DICICLOS SUBSTITUÍDOS"),
-          data.map(d=>React.createElement(HBar,{key:d.mes,label:d.mes,value:d.trocas,max:maxT,color:"#22c55e",valueLabel:String(d.trocas),height:20}))
-        ),
-        React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"% SOBRE TOTAL DE CHAMADOS"),
-        data.map(d=>React.createElement(HBar,{key:d.mes,label:d.mes,value:d.perc*100,max:25,color:"#8b5cf6",valueLabel:`${Math.round(d.perc*100)}%`,height:20}))
-      ),
-      React.createElement("div",{style:{display:"flex",gap:12,flexWrap:"wrap"}},
-        data.map((d,i)=>React.createElement(KpiCard,{key:i,label:MES_FULL[d.mes]||d.mes,value:fmt(d.trocas),sub:fmtPct(d.perc)+" dos chamados",color:"#8b5cf6"}))
-      )
-    );
-  }
-  return React.createElement("div",null,
-    React.createElement("div",{style:{display:"flex",gap:12,flexWrap:"wrap",marginBottom:28}},
-      data.map((d,i)=>React.createElement(KpiCard,{key:i,label:MES_FULL[d.mes]||d.mes,value:fmt(d.trocas),sub:fmtPct(d.perc)+" dos chamados",color:"#8b5cf6"}))
-    ),
-    React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px"}},
-      React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}},"HISTÓRICO JAN–MAI"),
-      React.createElement("div",{style:{borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20}},
-        allData.map(d=>React.createElement(HBar,{key:d.mes,label:d.mes,value:d.trocas,max:maxT,color:d.mes===mesFiltro?"#22c55e":"#8b5cf6",valueLabel:String(d.trocas),height:20}))
-      ),
-      allData.map(d=>React.createElement(HBar,{key:d.mes,label:d.mes,value:d.perc*100,max:maxP,color:d.mes===mesFiltro?"#22c55e":"#8b5cf6",valueLabel:`${Math.round(d.perc*100)}%`,height:20}))
-    )
-  );
-}
-
-function CostBlock({title,icon,color,dataKey,data,justificativa}){
-  const values=data.map(d=>d[dataKey]);
-  const maxVal=Math.max(...values);
-  const total=values.reduce((a,b)=>a+b,0);
-  return React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:20}},
-    React.createElement("p",{style:{fontSize:12,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.07em",margin:"0 0 16px"}},`${icon} ${title}`),
-    data.map((d,i)=>React.createElement(HBar,{key:d.mes,label:d.mes,value:d[dataKey],max:maxVal,color,valueLabel:fmtR(d[dataKey]),height:20})),
-    React.createElement("p",{style:{fontSize:12,color:"var(--text-muted)",margin:"14px 0 2px"}},"Total acumulado"),
-    React.createElement("p",{style:{fontSize:16,fontWeight:700,color,margin:"0 0 14px"}},fmtR(total)),
-    justificativa&&React.createElement("div",{style:{borderLeft:`3px solid ${color}`,paddingLeft:12}},
-      React.createElement("p",{style:{fontSize:12,color:"var(--text-muted)",margin:0,lineHeight:1.6}},justificativa)
-    )
-  );
-}
-
-function TabCustos({mesFiltro}){
-  const data=mesFiltro==="Todos"?mockData.custos:mockData.custos.filter(c=>c.mes===mesFiltro);
-  if(mesFiltro==="Todos"){
-    return React.createElement("div",null,
-      React.createElement(CostBlock,{title:"Descontos",icon:"🏷️",color:"#ef4444",dataKey:"desconto",data,
-        justificativa:"Em março houve descontos por ausência de veículos e atraso na importação. Em Abril e Maio, aumentaram pelo caso Multiplan/Barra Shopping."}),
-      React.createElement(CostBlock,{title:"Gastos Transportadora",icon:"🚚",color:"#f59e0b",dataKey:"transportadora",data,
-        justificativa:"Em Janeiro, custos subiram por atrasos de fim de ano e recesso de ATs. Em Abril, refletiu manobras de postergação e missão Multiplan."}),
-      React.createElement(CostBlock,{title:"Gastos com AT",icon:"🔧",color:"#8b5cf6",dataKey:"ats",data}),
-      React.createElement("div",{style:{marginTop:8}},
-        React.createElement(SectionTitle,null,"Comparativo Detalhado"),
-        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
-          React.createElement("thead",null,
-            React.createElement("tr",{style:{borderBottom:"2px solid var(--card-border)"}},
-              ["Mês","Faturamento","Descontos","Transportadora","ATS","Total Custos"].map(h=>
-                React.createElement("th",{key:h,style:{padding:"8px 10px",textAlign:"left",color:"var(--text-muted)",fontWeight:600,fontSize:11,textTransform:"uppercase"}},h)
-              )
-            )
-          ),
-          React.createElement("tbody",null,
-            data.map((row,i)=>
-              React.createElement("tr",{key:i,style:{borderBottom:"1px solid var(--card-border)"}},
-                React.createElement("td",{style:{padding:"9px 10px",fontWeight:600,color:"var(--text-primary)"}},MES_FULL[row.mes]||row.mes),
-                React.createElement("td",{style:{padding:"9px 10px",color:"var(--text-primary)"}},fmtR(row.faturamento)),
-                React.createElement("td",{style:{padding:"9px 10px",color:"#ef4444"}},fmtR(row.desconto)),
-                React.createElement("td",{style:{padding:"9px 10px",color:"#f59e0b"}},fmtR(row.transportadora)),
-                React.createElement("td",{style:{padding:"9px 10px",color:"#8b5cf6"}},fmtR(row.ats)),
-                React.createElement("td",{style:{padding:"9px 10px",fontWeight:600,color:"var(--text-primary)"}},fmtR(row.desconto+row.transportadora+row.ats))
-              )
-            )
-          )
-        )
-      )
-    );
-  }
-  const totDesc=data.reduce((a,b)=>a+b.desconto,0);
-  const totTrans=data.reduce((a,b)=>a+b.transportadora,0);
-  const totAts=data.reduce((a,b)=>a+b.ats,0);
-  return React.createElement("div",null,
-    React.createElement("div",{style:{display:"flex",gap:12,flexWrap:"wrap",marginBottom:24}},
-      React.createElement(KpiCard,{label:"Faturamento",value:fmtR(data[0]?.faturamento),color:"#22c55e"}),
-      React.createElement(KpiCard,{label:"Descontos",value:fmtR(totDesc),color:"#ef4444"}),
-      React.createElement(KpiCard,{label:"Transportadora",value:fmtR(totTrans),color:"#f59e0b"}),
-      React.createElement(KpiCard,{label:"ATS",value:fmtR(totAts),color:"#8b5cf6"})
-    )
-  );
-}
-
-function TabAtencao(){
-  const riscos=[
-    {nivel:"alto",cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
-      {ref:"SLA em Abril — 56%",impacto:"Quebra de contrato, insatisfação de clientes estratégicos. Risco de penalidades e não renovação.",solucao:"Célula de atendimento dedicada para contas estratégicas; resposta em 2h para chamados críticos."},
-      {ref:"Custo de Transportadora — Janeiro (R$27.416) e Abril (R$19.294)",impacto:"Erosão de margem operacional.",solucao:"Negociar contratos de tabela fixa mensal; avaliar modal próprio para regiões de alta concentração."},
-      {ref:"Desligamentos — Abril e Maio (18 cada)",impacto:"Perda de receita recorrente.",solucao:"Auditoria de motivo por desligamento; programa de retenção proativo para contratos com mais de 12 meses."},
-    ]},
-    {nivel:"medio",cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
-      {ref:"Pneus como sintoma #1 em todos os meses",impacto:"Chamados previsíveis e evitáveis que consomem capacidade operacional.",solucao:"Manutenção preventiva trimestral de pneus. Meta: redução de 30% em chamados no 2º semestre."},
-      {ref:"Alta de chamados em Março e Abril (183 e 213)",impacto:"Pressão sobre equipe e risco de atrasos no SLA.",solucao:"Identificar sazonalidade e reforçar equipe nos meses de pico (Mar–Abr)."},
-    ]},
-    {nivel:"baixo",cor:"#16a34a",bg:"#f0fdf4",bord:"#bbf7d0",titulo:"🟢 Monitoramento Contínuo",itens:[
-      {ref:"Custo ATS equilibrado (~R$13K–R$18K/mês)",impacto:"Controlado, mas com leve alta em Maio.",solucao:"Acompanhar variação; verificar se alta em Maio é pontual."},
-      {ref:"Descontos zerados em Fevereiro",impacto:"Operação sem intercorrências — modelo a ser replicado.",solucao:"Documentar práticas de Fevereiro como benchmark operacional."},
-    ]},
-  ];
-  return React.createElement("div",null,
-    React.createElement(SectionTitle,null,"Matriz de Risco Operacional"),
-    riscos.map(({nivel,cor,bg,bord,titulo,itens})=>
-      React.createElement("div",{key:nivel,style:{marginBottom:24}},
-        React.createElement("p",{style:{fontWeight:700,fontSize:14,color:cor,marginBottom:12}},titulo),
-        itens.map((item,i)=>
-          React.createElement("div",{key:i,style:{background:bg,border:`1px solid ${bord}`,borderRadius:10,padding:"14px 16px",marginBottom:10}},
-            React.createElement("p",{style:{fontWeight:700,fontSize:13,color:cor,margin:"0 0 6px"}},item.ref),
-            React.createElement("p",{style:{fontSize:12,margin:"0 0 6px",color:"#374151"}},`Impacto: ${item.impacto}`),
-            React.createElement("p",{style:{fontSize:12,margin:0,color:"#374151"}},`Plano de ação: ${item.solucao}`)
-          )
-        )
-      )
-    )
-  );
-}
-
-function TabVisaoGeral({mesFiltro}){
-  const chamados=mockData.chamados;
-  const maxC=Math.max(...chamados.map(c=>c.chamados));
-  if(mesFiltro==="Todos"){
-    return React.createElement("div",null,
-      React.createElement("div",{style:{background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:28}},
-        React.createElement("p",{style:{fontWeight:700,fontSize:15,color:"var(--text-primary)",marginBottom:18}},"Comparativo Mensal — Chamados e SLA"),
-        React.createElement("div",{style:{borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20}},
-          React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"TOTAL DE CHAMADOS"),
-          chamados.map(c=>React.createElement(HBar,{key:c.mes,label:c.mes,value:c.chamados,max:maxC,color:"#5b7cf5",valueLabel:String(c.chamados),height:20}))
-        ),
-        React.createElement("div",null,
-          React.createElement("p",{style:{fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}},"SLA CUMPRIDO (%)"),
-          chamados.map(c=>React.createElement(HBar,{key:c.mes,label:c.mes,value:c.percSLA*100,max:100,color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round(c.percSLA*100)}%`,height:20}))
-        )
-      ),
-      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:28}},
-        React.createElement("div",{style:{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:12,padding:"16px 18px"}},
-          React.createElement("p",{style:{fontWeight:700,color:"#15803d",fontSize:13,margin:"0 0 10px"}},"✅ O que melhorou"),
-          ["Faturamento cresceu +1,7% de Jan a Mai","Descontos em Fevereiro foram zero","Trocas em Abril atingiram mínima (17)","Custo de transportadora em Março foi o menor (R$5.862)"].map((t,i)=>
-            React.createElement("p",{key:i,style:{fontSize:12,color:"#166534",margin:"4px 0",paddingLeft:14,position:"relative"}},
-              React.createElement("span",{style:{position:"absolute",left:0}},"•"),t
-            )
-          )
-        ),
-        React.createElement("div",{style:{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"16px 18px"}},
-          React.createElement("p",{style:{fontWeight:700,color:"#b91c1c",fontSize:13,margin:"0 0 10px"}},"⚠️ O que piorou"),
-          ["SLA em Abril despencou para 56%","Desligamentos subiram de 3 (Jan) para 18 (Abr/Mai)","Chamados em Abril bateram recorde: 213","Custo de transportadora elevado em Jan e Abr"].map((t,i)=>
-            React.createElement("p",{key:i,style:{fontSize:12,color:"#991b1b",margin:"4px 0",paddingLeft:14,position:"relative"}},
-              React.createElement("span",{style:{position:"absolute",left:0}},"•"),t
-            )
-          )
-        )
-      )
-    );
-  }
-  const idx=mockData.chamados.findIndex(c=>c.mes===mesFiltro);
-  const c=chamados[idx];
-  const desl=mockData.desligamentos[idx];
-  const modelos=mockData.modelos[mesFiltro]||[];
-  const sintomas=mockData.sintomas[mesFiltro]||[];
-  const colors=["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
-  return React.createElement("div",null,
-    React.createElement("div",{style:{display:"flex",gap:12,flexWrap:"wrap",marginBottom:32}},
-      React.createElement(KpiCard,{label:"Total de Chamados",value:fmt(c.chamados),color:"#5b7cf5"}),
-      React.createElement(KpiCard,{label:"Encerrados",value:fmt(c.atendidos),sub:fmtPct(c.percAtendidos),color:"#22c55e"}),
-      React.createElement(KpiCard,{label:"SLA Cumprido",value:fmtPct(c.percSLA),color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444"}),
-      React.createElement(KpiCard,{label:"Desligamentos",value:fmt(desl.desligamentos),sub:fmtPct(desl.perc)+" da frota",color:"#f97316"})
-    ),
-    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}},
-      React.createElement("div",null,
-        React.createElement(SectionTitle,null,"Top 5 Modelos"),
-        modelos.map((m,i)=>React.createElement(HBar,{key:i,label:m.modelo,value:m.qtd,max:Math.max(...modelos.map(x=>x.qtd)),color:colors[i],valueLabel:`${m.qtd} (${m.perc}%)`,height:20}))
-      ),
-      React.createElement("div",null,
-        React.createElement(SectionTitle,null,"Top 5 Sintomas"),
-        sintomas.map((s,i)=>{
-          const ml=Math.max(...sintomas.map(x=>x.sintoma.length));
-          const mlw=Math.min(Math.max(ml*7,40),160);
-          return React.createElement(HBar,{key:i,label:s.sintoma,value:s.qtd,max:Math.max(...sintomas.map(x=>x.qtd)),color:colors[i],valueLabel:`${s.qtd} (${s.perc}%)`,height:20,labelWidth:mlw});
-        })
-      )
-    )
-  );
-}
-
-function Dashboard(){
-  const [aba,setAba]=useState("visao");
-  const [mes,setMes]=useState("Todos");
-  const [dark,setDark]=useState(true);
-  const theme=dark?{
+function applyTheme() {
+  const dark = state.dark;
+  const theme = dark ? {
     "--bg":"#0f1117","--sidebar-bg":"#1a1d27","--card-bg":"#1e2130","--card-border":"#2e3250",
     "--text-primary":"#f1f5f9","--text-muted":"#8890aa","--chart-grid":"#2e3250","--bar-bg":"#2e3250",
     "--tt-bg":"#1e2130","--tt-border":"#2e3250","--tt-text":"#f1f5f9",
     "--header-bg":"#1a1d27","--nav-hover":"#252a3a","--nav-active":"#252a3a","--filter-bg":"#1e2130",
-  }:{
+  } : {
     "--bg":"#f8f9fc","--sidebar-bg":"#ffffff","--card-bg":"#ffffff","--card-border":"#e8eaf2",
     "--text-primary":"#1a1d2e","--text-muted":"#6b7280","--chart-grid":"#f1f3f9","--bar-bg":"#f1f3f9",
     "--tt-bg":"#ffffff","--tt-border":"#e8eaf2","--tt-text":"#1a1d2e",
     "--header-bg":"#ffffff","--nav-hover":"#f0f2fc","--nav-active":"#eef0fc","--filter-bg":"#f0f2fc",
   };
-  const cssVars=Object.entries(theme).map(([k,v])=>`${k}:${v}`).join(";");
-  const currentLabel=NAV.find(n=>n.id===aba)?.label;
-  return React.createElement("div",{style:{display:"flex",height:"100vh",...Object.fromEntries(Object.entries(theme)),background:"var(--bg)"}},
-    React.createElement("style",null,`*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:3px}`),
-    // SIDEBAR
-    React.createElement("div",{style:{width:240,background:"var(--sidebar-bg)",borderRight:"1px solid var(--card-border)",display:"flex",flexDirection:"column",flexShrink:0}},
-      React.createElement("div",{style:{padding:"20px 18px 16px",borderBottom:"1px solid var(--card-border)"}},
-        React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
-          React.createElement("div",{style:{width:32,height:32,borderRadius:8,background:"#4f63f7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}},"⚡"),
-          React.createElement("div",null,
-            React.createElement("p",{style:{fontSize:13,fontWeight:700,color:"var(--text-primary)"}},"Brmobility"),
-            React.createElement("p",{style:{fontSize:10,color:"var(--text-muted)"}},"Relatório Operacional")
-          )
-        )
-      ),
-      React.createElement("nav",{style:{flex:1,padding:"10px",overflowY:"auto"}},
-        NAV.map(({id,label})=>
-          React.createElement("button",{key:id,onClick:()=>setAba(id),style:{
-            width:"100%",display:"flex",alignItems:"center",gap:10,
-            padding:"9px 10px",borderRadius:8,border:"none",cursor:"pointer",
-            background:aba===id?"var(--nav-active)":"transparent",
-            color:aba===id?"#4f63f7":"var(--text-muted)",
-            fontSize:13,fontWeight:aba===id?600:400,marginBottom:2,textAlign:"left"
-          }},label)
-        )
-      ),
-      React.createElement("div",{style:{padding:"14px 12px",borderTop:"1px solid var(--card-border)"}},
-        React.createElement("button",{onClick:()=>setDark(!dark),style:{
-          width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",
-          padding:"9px 12px",borderRadius:8,border:"1px solid var(--card-border)",
-          background:"var(--filter-bg)",cursor:"pointer",color:"var(--text-primary)",fontSize:12
-        }},
-          React.createElement("span",null,dark?"☀️ Light Mode":"🌙 Dark Mode"),
-          React.createElement("div",{style:{width:32,height:18,borderRadius:9,background:dark?"#4f63f7":"var(--card-border)",position:"relative"}},
-            React.createElement("div",{style:{position:"absolute",top:3,left:dark?16:3,width:12,height:12,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}})
-          )
-        )
-      )
-    ),
-    // MAIN
-    React.createElement("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
-      React.createElement("div",{style:{background:"var(--header-bg)",borderBottom:"1px solid var(--card-border)",padding:"14px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}},
-        React.createElement("div",null,
-          React.createElement("p",{style:{fontSize:16,fontWeight:700,color:"var(--text-primary)"}},currentLabel),
-          React.createElement("p",{style:{fontSize:12,color:"var(--text-muted)"}},mes==="Todos"?"Jan – Mai 2025 • Visão acumulada":`${MES_FULL[mes]} 2025`)
-        ),
-        React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}},
-          MESES.map(m=>
-            React.createElement("button",{key:m,onClick:()=>setMes(m),style:{
-              padding:"6px 14px",borderRadius:20,border:"1px solid",
-              borderColor:mes===m?"#4f63f7":"var(--card-border)",
-              background:mes===m?"#4f63f7":"var(--filter-bg)",
-              color:mes===m?"#fff":"var(--text-muted)",
-              fontSize:12,fontWeight:mes===m?600:400,cursor:"pointer"
-            }},m)
-          )
-        )
-      ),
-      React.createElement("div",{style:{flex:1,overflowY:"auto",padding:"24px 28px"}},
-        aba==="visao"&&React.createElement(TabVisaoGeral,{mesFiltro:mes}),
-        aba==="chamados"&&React.createElement(TabChamados,{mesFiltro:mes}),
-        aba==="modelos"&&React.createElement(TabModelos,{mesFiltro:mes}),
-        aba==="sintomas"&&React.createElement(TabSintomas,{mesFiltro:mes}),
-        aba==="desligamentos"&&React.createElement(TabDesligamentos,{mesFiltro:mes}),
-        aba==="trocas"&&React.createElement(TabTrocas,{mesFiltro:mes}),
-        aba==="custos"&&React.createElement(TabCustos,{mesFiltro:mes}),
-        aba==="atencao"&&React.createElement(TabAtencao,null)
-      )
-    )
-  );
+  const root = document.documentElement;
+  Object.entries(theme).forEach(([k,v]) => root.style.setProperty(k,v));
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Dashboard));
+// ─────────────────────────────────────────────────────────────────────────
+// HBAR
+// ─────────────────────────────────────────────────────────────────────────
+function hbar({ value, max, color, label, valueLabel, height=18, labelWidth=28 }) {
+  const pct = Math.min((value/max)*100, 100);
+  return `<div class="hbar-row">
+    <span class="hbar-label" style="width:${labelWidth}px">${esc(label)}</span>
+    <div class="hbar-track" style="height:${height}px">
+      <div class="hbar-fill" style="width:${pct}%;height:100%;background:${color}">
+        <div class="hbar-dot"></div>
+      </div>
+    </div>
+    <span class="hbar-value">${esc(valueLabel)}</span>
+  </div>`;
+}
+
+function autoLabelWidth(labels) {
+  const maxLen = Math.max(...labels.map(l => l.length));
+  return Math.min(Math.max(maxLen*7, 40), 200);
+}
+
+function kpiCard({ label, value, sub, color="#5b7cf5" }) {
+  return `<div class="kpi-card">
+    <p class="kpi-label">${esc(label)}</p>
+    <p class="kpi-value" style="color:${color}">${value}</p>
+    ${sub?`<p class="kpi-sub">${esc(sub)}</p>`:""}
+  </div>`;
+}
+
+function sectionTitle(txt) { return `<h3 class="section-title">${esc(txt)}</h3>`; }
+
+// ─────────────────────────────────────────────────────────────────────────
+// MINI AREA CHART (SVG) — substitui recharts
+// ─────────────────────────────────────────────────────────────────────────
+function miniAreaCard({ title, icon, color, dataKey, formatValue, getTooltipExtra, idSuffix }) {
+  const data = mockData.chamados.map((c,i) => ({
+    mes: c.mes,
+    val: mockData.custos[i][dataKey] !== undefined ? mockData.custos[i][dataKey] : mockData.chamados[i].noSLA
+  }));
+  const W = 280, H = 150, PAD = 24;
+  const maxV = Math.max(...data.map(d=>d.val), 1);
+  const minV = 0;
+  const stepX = (W - PAD*1.2) / (data.length - 1);
+  const pts = data.map((d,i) => {
+    const x = PAD*0.6 + i*stepX;
+    const y = H - 20 - ((d.val - minV)/(maxV-minV || 1)) * (H - 40);
+    return { x, y, ...d };
+  });
+  const linePath = pts.map((p,i) => (i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`)).join(" ");
+  const areaPath = `${linePath} L${pts[pts.length-1].x},${H-20} L${pts[0].x},${H-20} Z`;
+  const gradId = `grad-${idSuffix}`;
+
+  const circles = pts.map((p,i) => `<circle data-idx="${i}" data-chart="${idSuffix}" cx="${p.x}" cy="${p.y}" r="5" fill="${color}" fill-opacity="0" stroke="none" style="cursor:pointer"></circle>
+    <circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${color}"></circle>`).join("");
+
+  const xLabels = pts.map(p => `<text x="${p.x}" y="${H-4}" font-size="11" fill="var(--text-muted)" text-anchor="middle">${p.mes}</text>`).join("");
+
+  return `<div class="mini-card" data-tooltip-host="${idSuffix}" style="position:relative">
+    <p class="mini-title" style="color:${color}"><span style="font-size:14px">${icon}</span>${esc(title)}</p>
+    <div class="mini-chart-wrap">
+      <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" style="overflow:visible">
+        <defs>
+          <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stop-color="${color}" stop-opacity="0.3"/>
+            <stop offset="95%" stop-color="${color}" stop-opacity="0.03"/>
+          </linearGradient>
+        </defs>
+        ${[0,1,2,3].map(i => `<line x1="${PAD*0.6}" y1="${20+i*(H-40)/3}" x2="${W-PAD*0.6}" y2="${20+i*(H-40)/3}" stroke="var(--chart-grid)" stroke-dasharray="3 3"/>`).join("")}
+        <path d="${areaPath}" fill="url(#${gradId})"></path>
+        <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2"></path>
+        ${circles}
+        ${xLabels}
+      </svg>
+    </div>
+  </div>`;
+}
+
+function wireMiniChartTooltips(formatValueFns) {
+  document.querySelectorAll('circle[data-chart]').forEach(circle => {
+    const chartId = circle.getAttribute('data-chart');
+    const idx = parseInt(circle.getAttribute('data-idx'),10);
+    circle.addEventListener('mouseenter', (e) => {
+      const host = document.querySelector(`[data-tooltip-host="${chartId}"]`);
+      if (!host) return;
+      const mesKey = mockData.chamados[idx].mes;
+      const dataKeyInfo = formatValueFns[chartId];
+      const val = dataKeyInfo.getValue(idx);
+      const sintoma = mockData.sintomas[mesKey]?.[0]?.sintoma ?? "-";
+      const modelo = mockData.modelos[mesKey]?.[0]?.modelo ?? "-";
+      const chamadosV = mockData.chamados[idx]?.chamados;
+      const trocasV = mockData.substituicoes[idx]?.trocas;
+      let tip = host.querySelector('.tooltip-box');
+      if (!tip) {
+        tip = document.createElement('div');
+        tip.className = 'tooltip-box';
+        host.appendChild(tip);
+      }
+      tip.innerHTML = `<p style="font-weight:700;margin-bottom:4px">${mesKey}</p>
+        <p style="color:${dataKeyInfo.color}">${dataKeyInfo.formatValue(val)}</p>
+        <p style="color:var(--text-muted);font-size:11px">⚡ Sintoma: <b>${esc(sintoma)}</b></p>
+        <p style="color:var(--text-muted);font-size:11px">🚲 Modelo: <b>${esc(modelo)}</b></p>
+        <p style="color:var(--text-muted);font-size:11px">Chamados: <b>${chamadosV}</b></p>
+        <p style="color:var(--text-muted);font-size:11px">Trocas: <b>${trocasV}</b></p>`;
+      tip.style.display = 'block';
+      tip.style.left = '10px';
+      tip.style.top = '36px';
+    });
+    circle.addEventListener('mouseleave', (e) => {
+      const host = document.querySelector(`[data-tooltip-host="${chartId}"]`);
+      const tip = host?.querySelector('.tooltip-box');
+      if (tip) tip.style.display = 'none';
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TAB: VISÃO GERAL
+// ─────────────────────────────────────────────────────────────────────────
+function tabVisaoGeral(mesFiltro) {
+  const chamados = mockData.chamados;
+  const maxChamados = Math.max(...chamados.map(c=>c.chamados));
+
+  if (mesFiltro === "Todos") {
+    let html = `<div class="card">
+      <p style="font-weight:700;font-size:15px;color:var(--text-primary);margin-bottom:18px">Comparativo Mensal — Chamados e SLA</p>
+      <div class="block-divider">
+        <p class="block-label">TOTAL DE CHAMADOS</p>
+        ${chamados.map(c => hbar({ label:c.mes, value:c.chamados, max:maxChamados, color:"#5b7cf5", valueLabel:String(c.chamados), height:20, labelWidth:28 })).join("")}
+      </div>
+      <div>
+        <p class="block-label">SLA CUMPRIDO (%)</p>
+        ${chamados.map(c => hbar({ label:c.mes, value:c.percSLA*100, max:100, color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444", valueLabel:`${Math.round(c.percSLA*100)}%`, height:20, labelWidth:28 })).join("")}
+      </div>
+    </div>
+
+    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:6px">Evolução de Custos Operacionais — Jan a Mai</p>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Passe o mouse sobre os pontos do gráfico para ver o principal sintoma e modelo recorrente daquele mês.</p>
+    <div class="mini-row">
+      ${miniAreaCard({ title:"Descontos", icon:"🏷️", color:"#ef4444", dataKey:"desconto", idSuffix:"desconto" })}
+      ${miniAreaCard({ title:"Gastos com Transportadora", icon:"🚚", color:"#f59e0b", dataKey:"transportadora", idSuffix:"transportadora" })}
+      ${miniAreaCard({ title:"Gastos com ATS", icon:"🔧", color:"#8b5cf6", dataKey:"ats", idSuffix:"ats" })}
+      ${miniAreaCard({ title:"Chamados no SLA", icon:"📊", color:"#22c55e", dataKey:"noSLA", idSuffix:"slaCount" })}
+    </div>
+
+    <div class="insight-grid">
+      <div class="insight-box" style="background:#f0fdf4;border:1px solid #bbf7d0">
+        <p class="insight-title" style="color:#15803d">📈 O que melhorou</p>
+        ${["Faturamento cresceu +1,7% de Jan a Mai (R$661K → R$672K)","Descontos em Fevereiro foram zero — melhor mês do período","Trocas de equipamentos em Abril atingiram mínima (17 trocas)","Custo de transportadora em Março foi o menor do período (R$5.862)"]
+          .map(t => `<p class="insight-item" style="color:#166534">${esc(t)}</p>`).join("")}
+      </div>
+      <div class="insight-box" style="background:#fef2f2;border:1px solid #fecaca">
+        <p class="insight-title" style="color:#b91c1c">📉 O que piorou</p>
+        ${["SLA despencou 29pp em Abril (85% → 56%) — pior do período","Desligamentos subiram de 3 (Jan) para 18 (Abr/Mai) — alta de 500%","Chamados em Abril bateram recorde: 213 — +16% vs média","Custo de transportadora em Jan (R$27K) e Abr (R$19K) elevado"]
+          .map(t => `<p class="insight-item" style="color:#991b1b">${esc(t)}</p>`).join("")}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0">
+      ${sectionTitle("Diagnósticos Estratégicos")}
+      ${[
+        { titulo:"Degradação de SLA em Abril", texto:"O SLA de Abril (56%) representou queda crítica, principalmente associada ao caso Multiplan/Barra Shopping. Recomenda-se revisão do protocolo de escalonamento para chamados de grande volume e definição de SLA diferenciado por conta estratégica." },
+        { titulo:"Escalada de Desligamentos", texto:"O crescimento de desligamentos de 3 (Jan) para 18 (Abr/Mai) sugere deterioração de frota ou processo de cobrança. Ação prioritária: auditoria dos equipamentos com mais de 18 meses de campo e revisão da política de desligamento por inadimplência." },
+        { titulo:"Pneu como principal sintoma recorrente", texto:"Em todos os meses, Pneus liderou o ranking de sintomas. Esse padrão aponta para frota envelhecida ou rotas com piso agressivo. Plano de ação: programa preventivo de inspeção de pneus a cada 3 meses por contrato." },
+      ].map(({titulo,texto}) => `<div class="diag-item"><p class="diag-title">${esc(titulo)}</p><p class="diag-text">${esc(texto)}</p></div>`).join("")}
+    </div>`;
+    return html;
+  }
+
+  const idx = chamados.findIndex(c => c.mes === mesFiltro);
+  const c = chamados[idx];
+  const desl = mockData.desligamentos[idx];
+  const modelos = mockData.modelos[mesFiltro] || [];
+  const sintomas = mockData.sintomas[mesFiltro] || [];
+
+  function rankList(items, key, color) {
+    return items.map((m,i) => `<div class="rank-row">
+      <span class="rank-num" style="background:${color}">${i+1}</span>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary)">${esc(m[key])}</span>
+          <span style="font-size:12px;color:var(--text-muted)">${m.qtd} (${m.perc}%)</span>
+        </div>
+        <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${m.perc*2.5}%;background:${color}"></div></div>
+      </div>
+    </div>`).join("");
+  }
+
+  return `<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Dados de <strong>${MES_FULL[mesFiltro]}</strong></p>
+  <div class="kpi-row">
+    ${kpiCard({ label:"Total de Chamados", value:fmt(c.chamados), color:"#5b7cf5" })}
+    ${kpiCard({ label:"Encerrados no Mês", value:fmt(c.atendidos), sub:fmtPct(c.percAtendidos)+" do total", color:"#22c55e" })}
+    ${kpiCard({ label:"SLA Cumprido", value:fmtPct(c.percSLA), color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444" })}
+    ${kpiCard({ label:"Desligamentos", value:fmt(desl.desligamentos), sub:fmtPct(desl.perc)+" da frota", color:"#f97316" })}
+  </div>
+  <div class="grid-2">
+    <div>${sectionTitle("Top 5 Modelos mais acionados")}${rankList(modelos,"modelo","#5b7cf5")}</div>
+    <div>${sectionTitle("Top 5 Sintomas mais frequentes")}${rankList(sintomas,"sintoma","#f97316")}</div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TAB: CHAMADOS
+// ─────────────────────────────────────────────────────────────────────────
+function chamadosTable(data) {
+  return `<table>
+    <thead><tr>${["Mês","Chamados","Atendidos","% Atend.","No SLA","% SLA"].map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+    <tbody>${data.map(row => `<tr>
+      <td style="font-weight:600">${MES_FULL[row.mes]||row.mes}</td>
+      <td>${fmt(row.chamados)}</td>
+      <td>${fmt(row.atendidos)}</td>
+      <td>${fmtPct(row.percAtendidos)}</td>
+      <td>${fmt(row.noSLA)}</td>
+      <td><span class="badge" style="background:${row.percSLA>=0.8?"#dcfce7":row.percSLA>=0.7?"#fff7ed":"#fef2f2"};color:${row.percSLA>=0.8?"#15803d":row.percSLA>=0.7?"#c2410c":"#b91c1c"}">${fmtPct(row.percSLA)}</span></td>
+    </tr>`).join("")}</tbody>
+  </table>`;
+}
+
+function tabChamados(mesFiltro) {
+  const data = mesFiltro==="Todos" ? mockData.chamados : mockData.chamados.filter(c=>c.mes===mesFiltro);
+  const maxC = Math.max(...mockData.chamados.map(c=>c.chamados));
+  const maxA = Math.max(...mockData.chamados.map(c=>c.atendidos));
+
+  if (mesFiltro === "Todos") {
+    return `<div class="card">
+      <div class="block-divider"><p class="block-label">TOTAL DE CHAMADOS</p>${data.map(c=>hbar({label:c.mes,value:c.chamados,max:maxC,color:"#5b7cf5",valueLabel:String(c.chamados),height:20,labelWidth:28})).join("")}</div>
+      <div class="block-divider"><p class="block-label">ATENDIDOS NO MÊS</p>${data.map(c=>hbar({label:c.mes,value:c.atendidos,max:maxA,color:"#22c55e",valueLabel:String(c.atendidos),height:20,labelWidth:28})).join("")}</div>
+      <div><p class="block-label">SLA CUMPRIDO (%)</p>${data.map(c=>hbar({label:c.mes,value:c.percSLA*100,max:100,color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round(c.percSLA*100)}%`,height:20,labelWidth:28})).join("")}</div>
+    </div>${chamadosTable(data)}`;
+  }
+
+  return `<div class="kpi-row">
+    ${data.map(row => kpiCard({label:"Chamados",value:fmt(row.chamados),color:"#5b7cf5"})
+      + kpiCard({label:"Atendidos",value:fmt(row.atendidos),sub:fmtPct(row.percAtendidos),color:"#22c55e"})
+      + kpiCard({label:"SLA",value:fmtPct(row.percSLA),color:row.percSLA>=0.8?"#22c55e":row.percSLA>=0.7?"#f97316":"#ef4444"})
+      + kpiCard({label:"No SLA",value:fmt(row.noSLA),color:"#8b5cf6"})).join("")}
+  </div>${chamadosTable(data)}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TAB: MODELOS
+// ─────────────────────────────────────────────────────────────────────────
+function tabModelos(mesFiltro) {
+  const colors = ["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
+  const meses = mesFiltro==="Todos" ? Object.keys(mockData.modelos) : [mesFiltro];
+
+  if (mesFiltro === "Todos") {
+    const modelTotals = {};
+    meses.forEach(m => mockData.modelos[m]?.forEach(r => { modelTotals[r.modelo] = (modelTotals[r.modelo]||0)+r.qtd; }));
+    const maxTotal = Math.max(...Object.values(modelTotals));
+    const allModelos = ["S9","S8","I2","S10","BR8"];
+
+    let html = `<div class="card">
+      <p class="block-label" style="margin-bottom:16px">TOTAL DE CHAMADOS POR MODELO (ACUMULADO JAN–MAI)</p>
+      ${allModelos.map((modelo,i) => hbar({label:modelo,value:modelTotals[modelo]||0,max:maxTotal,color:colors[i],valueLabel:String(modelTotals[modelo]||0),height:22,labelWidth:28})).join("")}
+    </div>`;
+    meses.forEach(m => {
+      const rows = mockData.modelos[m] || [];
+      const maxQ = Math.max(...rows.map(r=>r.qtd));
+      html += `<div class="card">
+        <p style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:12px">${MES_FULL[m]} — Top 5 Modelos</p>
+        ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:18,labelWidth:28})).join("")}
+      </div>`;
+    });
+    return html;
+  }
+
+  const rows = mockData.modelos[mesFiltro] || [];
+  const maxQ = Math.max(...rows.map(r=>r.qtd));
+  return `<div class="card">
+    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro]} — Top 5 Modelos</p>
+    ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22,labelWidth:28})).join("")}
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TAB: SINTOMAS
+// ─────────────────────────────────────────────────────────────────────────
+function tabSintomas(mesFiltro) {
+  const colors = ["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
+  const meses = mesFiltro==="Todos" ? Object.keys(mockData.sintomas) : [mesFiltro];
+
+  if (mesFiltro === "Todos") {
+    const sintomaMap = {};
+    meses.forEach(m => mockData.sintomas[m]?.forEach(s => { sintomaMap[s.sintoma]=(sintomaMap[s.sintoma]||0)+s.qtd; }));
+    const sorted = Object.entries(sintomaMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const accumRows = sorted.map(([sintoma,qtd],i) => ({ label:sintoma, value:qtd, valueLabel:String(qtd), color:colors[i%colors.length] }));
+    const maxVal = Math.max(...accumRows.map(r=>r.value));
+    const lw = autoLabelWidth(accumRows.map(r=>r.label));
+
+    let html = `<div class="card">
+      <p class="block-label" style="margin-bottom:16px">SINTOMAS MAIS FREQUENTES (ACUMULADO JAN–MAI)</p>
+      ${accumRows.map(r => hbar({label:r.label,value:r.value,max:maxVal,color:r.color,valueLabel:r.valueLabel,height:20,labelWidth:lw})).join("")}
+    </div>`;
+
+    meses.forEach(m => {
+      const rows = (mockData.sintomas[m]||[]).map((s,i) => ({ label:s.sintoma, value:s.qtd, valueLabel:`${s.qtd} (${s.perc}%)`, color:colors[i] }));
+      const maxV = Math.max(...rows.map(r=>r.value));
+      const labelW = autoLabelWidth(rows.map(r=>r.label));
+      html += `<div class="card">
+        <p style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:12px">${MES_FULL[m]} — Top 5 Sintomas</p>
+        ${rows.map(r => hbar({label:r.label,value:r.value,max:maxV,color:r.color,valueLabel:r.valueLabel,height:18,labelWidth:labelW})).join("")}
+      </div>`;
+    });
+    return html;
+  }
+
+  const rows = mockData.sintomas[mesFiltro] || [];
+  const maxQ = Math.max(...rows.map(r=>r.qtd));
+  const lw = autoLabelWidth(rows.map(r=>r.sintoma));
+  return `<div class="card">
+    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro]} — Top 5 Sintomas</p>
+    ${rows.map((s,i) => hbar({label:s.sintoma,value:s.qtd,max:maxQ,color:colors[i],valueLabel:`${s.qtd} (${s.perc}%)`,height:22,labelWidth:lw})).join("")}
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TAB: DESLIGAMENTOS
+// ─────────────────────────────────────────────────────────────────────────
+function tabDesligamentos(mesFiltro) {
+  const allData = mockData.desligamentos;
+  const data = mesFiltro==="Todos" ? allData : allData.filter(d=>d.mes===mesFiltro);
+  const maxD = Math.max(...allData.map(d=>d.desligamentos));
+  const percDosChamados = d => { const c = mockData.chamados.find(c=>c.mes===d.mes); return c ? d.desligamentos/c.chamados : 0; };
+  const maxPercChamados = Math.max(...allData.map(d=>percDosChamados(d)*100));
+
+  if (mesFiltro === "Todos") {
+    return `<div class="card">
+      <div class="block-divider"><p class="block-label">DESLIGAMENTOS POR MÊS</p>${data.map(d=>hbar({label:d.mes,value:d.desligamentos,max:maxD,color:"#ef4444",valueLabel:String(d.desligamentos),height:20,labelWidth:28})).join("")}</div>
+      <p class="block-label">% DOS CHAMADOS</p>
+      ${data.map(d => { const pct=percDosChamados(d); return hbar({label:d.mes,value:pct*100,max:maxPercChamados,color:"#f97316",valueLabel:fmtPct(pct),height:20,labelWidth:28}); }).join("")}
+    </div>
+    <div class="kpi-row" style="margin-bottom:0">
+      ${data.map(d => kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.desligamentos),sub:`${fmtPct(percDosChamados(d))} dos chamados`,color:"#ef4444"})).join("")}
+    </div>`;
+  }
+
+  return `<div class="kpi-row">
+    ${data.map(d => { const pct=percDosChamados(d); return kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.desligamentos),sub:`${fmtPct(pct)} dos chamados`,color:"#ef4444"}); }).join("")}
+  </div>
+  <div class="card" style="margin-bottom:0">
+    <p class="block-label" style="margin-bottom:16px">HISTÓRICO — DESLIGAMENTOS (JAN–MAI)</p>
+    <div class="block-divider">
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;font-weight:500">Quantidade de desligamentos</p>
+      ${allData.map(d => hbar({label:d.mes,value:d.desligamentos,max:maxD,color:d.mes===mesFiltro?"#ef4444":"#f97316",valueLabel:String(d.desligamentos),height:20,labelWidth:28})).join("")}
+    </div>
+    <div>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;font-weight:500">% dos chamados</p>
+      ${allData.map(d => { const pct=percDosChamados(d); return hbar({label:d.mes,value:pct*100,max:maxPercChamados,color:d.mes===mesFiltro?"#ef4444":"#f97316",valueLabel:fmtPct(pct),height:20,labelWidth:28}); }).join("")}
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TAB: TROCAS
+// ─────────────────────────────────────────────────────────────────────────
+function tabTrocas(mesFiltro) {
+  const allData = mockData.substituicoes;
+  const data = mesFiltro==="Todos" ? allData : allData.filter(d=>d.mes===mesFiltro);
+  const maxT = Math.max(...allData.map(s=>s.trocas));
+  const maxPerc = Math.max(...allData.map(s=>s.perc*100));
+
+  if (mesFiltro === "Todos") {
+    return `<div class="card">
+      <p style="font-weight:700;font-size:15px;color:var(--text-primary);margin-bottom:18px">Trocas de Equipamentos — Comparativo Mensal</p>
+      <div class="block-divider"><p class="block-label">DICICLOS SUBSTITUÍDOS</p>${data.map(d=>hbar({label:d.mes,value:d.trocas,max:maxT,color:"#22c55e",valueLabel:String(d.trocas),height:20,labelWidth:28})).join("")}</div>
+      <div><p class="block-label">% SOBRE TOTAL DE CHAMADOS</p>${data.map(d=>hbar({label:d.mes,value:d.perc*100,max:25,color:"#8b5cf6",valueLabel:`${Math.round(d.perc*100)}%`,height:20,labelWidth:28})).join("")}</div>
+    </div>
+    <div class="kpi-row" style="margin-bottom:0">
+      ${data.map(d => kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.trocas),sub:fmtPct(d.perc)+" dos chamados",color:"#8b5cf6"})).join("")}
+    </div>`;
+  }
+
+  return `<div class="kpi-row">
+    ${data.map(d => kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.trocas),sub:fmtPct(d.perc)+" dos chamados",color:"#8b5cf6"})).join("")}
+  </div>
+  <div class="card" style="margin-bottom:0">
+    <p class="block-label" style="margin-bottom:16px">HISTÓRICO — TROCAS DE EQUIPAMENTOS (JAN–MAI)</p>
+    <div class="block-divider">
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;font-weight:500">Diciclos substituídos</p>
+      ${allData.map(d => hbar({label:d.mes,value:d.trocas,max:maxT,color:d.mes===mesFiltro?"#22c55e":"#8b5cf6",valueLabel:String(d.trocas),height:20,labelWidth:28})).join("")}
+    </div>
+    <div>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;font-weight:500">% dos chamados</p>
+      ${allData.map(d => hbar({label:d.mes,value:d.perc*100,max:maxPerc,color:d.mes===mesFiltro?"#22c55e":"#8b5cf6",valueLabel:`${Math.round(d.perc*100)}%`,height:20,labelWidth:28})).join("")}
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TAB: CUSTOS
+// ─────────────────────────────────────────────────────────────────────────
+function costTable(data) {
+  return `<table>
+    <thead><tr>${["Mês","Faturamento","Descontos","Transportadora","ATS","Total Custos"].map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+    <tbody>${data.map(row => `<tr>
+      <td style="font-weight:600">${MES_FULL[row.mes]||row.mes}</td>
+      <td>${fmtR(row.faturamento)}</td>
+      <td style="color:#ef4444">${fmtR(row.desconto)}</td>
+      <td style="color:#f59e0b">${fmtR(row.transportadora)}</td>
+      <td style="color:#8b5cf6">${fmtR(row.ats)}</td>
+      <td style="font-weight:600">${fmtR(row.desconto+row.transportadora+row.ats)}</td>
+    </tr>`).join("")}</tbody>
+  </table>`;
+}
+
+function costBlock({ title, icon, color, dataKey, data, justificativa }) {
+  const values = data.map(d=>d[dataKey]);
+  const maxVal = Math.max(...values);
+  const total = values.reduce((a,b)=>a+b,0);
+  return `<div class="card">
+    <p style="font-size:12px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.07em;margin:0 0 16px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">${icon}</span>${esc(title)}</p>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Valores por mês</p>
+    ${data.map(d => hbar({label:d.mes,value:d[dataKey],max:maxVal,color:color,valueLabel:fmtR(d[dataKey]),height:20,labelWidth:28})).join("")}
+    <p style="font-size:12px;color:var(--text-muted);margin:14px 0 2px">Total acumulado</p>
+    <p style="font-size:16px;font-weight:700;color:${color};margin:0 0 14px">${fmtR(total)}</p>
+    ${justificativa?`<div style="border-left:3px solid ${color};padding-left:12px;margin-top:4px"><p style="font-size:12px;color:var(--text-muted);margin:0;line-height:1.6">${esc(justificativa)}</p></div>`:""}
+  </div>`;
+}
+
+function tabCustos(mesFiltro) {
+  const data = mesFiltro==="Todos" ? mockData.custos : mockData.custos.filter(c=>c.mes===mesFiltro);
+
+  if (mesFiltro === "Todos") {
+    return costBlock({ title:"Descontos", icon:"🏷️", color:"#ef4444", dataKey:"desconto", data, justificativa:"Em março houve descontos aplicados devido a ausência de veículos e insumos para atendimento rápido, causada por atraso na importação. Em Abril e Maio, os descontos aumentaram em razão do caso Multiplan/Barra Shopping." })
+    + costBlock({ title:"Gastos Transportadora", icon:"🚚", color:"#f59e0b", dataKey:"transportadora", data, justificativa:"Em Janeiro, o custo de transportadoras subiu devido aos atrasos de final de ano na logística e período de recesso de alguns ATs. Em Abril, refletiu manobras de postergação de boletos de Fev/Mar, custos da missão Multiplan e envios do Barra Shopping. Em Maio, o aumento decorreu do maior volume de trocas de veículos e de cancelamentos/retiradas." })
+    + costBlock({ title:"Gastos com AT", icon:"🔧", color:"#8b5cf6", dataKey:"ats", data })
+    + `<div>${sectionTitle("Comparativo Detalhado por Mês")}${costTable(data)}</div>`;
+  }
+
+  const totDesc = data.reduce((a,b)=>a+b.desconto,0);
+  const totTrans = data.reduce((a,b)=>a+b.transportadora,0);
+  const totAts = data.reduce((a,b)=>a+b.ats,0);
+  const totFat = data[0]?.faturamento || 0;
+  return `<div class="kpi-row">
+    ${kpiCard({label:"Faturamento",value:fmtR(totFat),color:"#22c55e"})}
+    ${kpiCard({label:"Descontos",value:fmtR(totDesc),color:"#ef4444"})}
+    ${kpiCard({label:"Transportadora",value:fmtR(totTrans),color:"#f59e0b"})}
+    ${kpiCard({label:"ATS",value:fmtR(totAts),color:"#8b5cf6"})}
+  </div>${costTable(data)}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TAB: PONTOS DE ATENÇÃO
+// ─────────────────────────────────────────────────────────────────────────
+function tabAtencao() {
+  const riscos = [
+    { nivel:"alto",cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
+      { ref:"SLA em Abril — 56%",impacto:"Quebra de contrato, insatisfação de clientes estratégicos (Multiplan/Barra Shopping). Penalidades financeiras e risco de não renovação.",solucao:"Implementar célula de atendimento dedicada para contas estratégicas; revisar protocolo de escalonamento com resposta em 2h para chamados críticos." },
+      { ref:"Custo de Transportadora — Janeiro (R$27.416) e Abril (R$19.294)",impacto:"Erosão de margem operacional em meses já pressionados por descontos e volume de chamados acima da média.",solucao:"Negociar contratos de tabela fixa mensal com transportadoras parceiras; avaliar modal próprio para regiões de alta concentração." },
+      { ref:"Desligamentos — Abril e Maio (18 cada)",impacto:"Perda de receita recorrente e possível migração de base para concorrentes.",solucao:"Auditoria de motivo por desligamento; criação de programa de retenção proativo para contratos com mais de 12 meses de campo." },
+    ]},
+    { nivel:"medio",cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
+      { ref:"Pneus como sintoma #1 em todos os meses",impacto:"Alto volume de chamados previsíveis e evitáveis que consomem capacidade operacional.",solucao:"Programa de manutenção preventiva trimestral de pneus por contrato. Meta: redução de 30% em chamados no 2º semestre." },
+      { ref:"Alta de chamados em Março e Abril (183 e 213)",impacto:"Pressão sobre equipe de atendimento e risco de atrasos no SLA.",solucao:"Identificar sazonalidade e reforçar equipe preventivamente nos meses de pico (Mar–Abr)." },
+      { ref:"Taxa de troca crescente (16% → 20% em Maio)",impacto:"Aumento de custo logístico e possível indicação de deterioração de frota.",solucao:"Mapear equipamentos com maior taxa de troca; avaliar substituição de frota envelhecida." },
+    ]},
+    { nivel:"baixo",cor:"#16a34a",bg:"#f0fdf4",bord:"#bbf7d0",titulo:"🟢 Risco Baixo — Monitoramento Contínuo",itens:[
+      { ref:"Custo ATS equilibrado (~R$13K–R$18K/mês)",impacto:"Custo controlado, mas com leve tendência de alta em Maio.",solucao:"Acompanhar variação; identificar se alta em Maio é pontual ou tendência." },
+      { ref:"Descontos zerados em Fevereiro",impacto:"Indica operação sem intercorrências — modelo a ser replicado.",solucao:"Documentar práticas de Fevereiro e aplicar como benchmark operacional." },
+    ]},
+  ];
+
+  return `${sectionTitle("Matriz de Risco Operacional")}
+  ${riscos.map(({cor,bg,bord,titulo,itens}) => `<div style="margin-bottom:24px">
+    <p style="font-weight:700;font-size:14px;color:${cor};margin-bottom:12px">${titulo}</p>
+    ${itens.map(item => `<div class="risk-box" style="background:${bg};border:1px solid ${bord}">
+      <p class="risk-ref" style="color:${cor}">ℹ️ ${esc(item.ref)}</p>
+      <p class="risk-text"><strong>Impacto:</strong> ${esc(item.impacto)}</p>
+      <p class="risk-text" style="margin:0"><strong>Plano de ação:</strong> ${esc(item.solucao)}</p>
+    </div>`).join("")}
+  </div>`).join("")}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// RENDER PRINCIPAL
+// ─────────────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  return `<div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-box">⚡</div>
+      <div><p class="brand-title">BRMOBILITY</p><p class="brand-sub">OPERACIONAL</p></div>
+    </div>
+    <nav>
+      ${NAV.map(n => `<button class="nav-btn ${state.aba===n.id?'active':''}" data-nav="${n.id}">
+        <span class="ic">${n.icon}</span><span class="lbl">${n.label}</span>${state.aba===n.id?'<span style="font-size:11px">›</span>':''}
+      </button>`).join("")}
+    </nav>
+    <div class="sidebar-footer">
+      <button class="theme-btn" id="themeToggle">
+        <span style="display:flex;align-items:center;gap:8px">${state.dark?'☀️':'🌙'} ${state.dark?'Light Mode':'Dark Mode'}</span>
+        <div class="toggle-track" style="background:${state.dark?'#4f63f7':'var(--card-border)'}">
+          <div class="toggle-dot" style="left:${state.dark?'16px':'3px'}"></div>
+        </div>
+      </button>
+    </div>
+  </div>`;
+}
+
+function renderHeader() {
+  const currentAba = NAV.find(n=>n.id===state.aba);
+  return `<div class="header">
+    <div>
+      <p class="header-title">${currentAba?.label || ''}</p>
+      <p class="header-sub">${state.mes==="Todos"?"Jan – Mai 2025 • Visão acumulada":MES_FULL[state.mes]+" 2025"}</p>
+    </div>
+    <div class="filters">
+      ${MESES.map(m => `<button class="filter-btn ${state.mes===m?'active':''}" data-mes="${m}">${m}</button>`).join("")}
+    </div>
+  </div>`;
+}
+
+function renderContent() {
+  switch(state.aba) {
+    case "visao": return tabVisaoGeral(state.mes);
+    case "chamados": return tabChamados(state.mes);
+    case "modelos": return tabModelos(state.mes);
+    case "sintomas": return tabSintomas(state.mes);
+    case "desligamentos": return tabDesligamentos(state.mes);
+    case "trocas": return tabTrocas(state.mes);
+    case "custos": return tabCustos(state.mes);
+    case "atencao": return tabAtencao();
+    default: return "";
+  }
+}
+
+function render() {
+  applyTheme();
+  const root = document.getElementById('root');
+  root.innerHTML = `<div class="app">
+    ${renderSidebar()}
+    <div class="main">
+      ${renderHeader()}
+      <div class="content">${renderContent()}</div>
+    </div>
+  </div>`;
+  attachEvents();
+
+  if (state.aba === "visao") {
+    wireMiniChartTooltips({
+      desconto: { color:"#ef4444", formatValue:fmtR, getValue: idx => mockData.custos[idx].desconto },
+      transportadora: { color:"#f59e0b", formatValue:fmtR, getValue: idx => mockData.custos[idx].transportadora },
+      ats: { color:"#8b5cf6", formatValue:fmtR, getValue: idx => mockData.custos[idx].ats },
+      slaCount: { color:"#22c55e", formatValue: v => `${fmt(v)} chamados`, getValue: idx => mockData.chamados[idx].noSLA },
+    });
+  }
+}
+
+function attachEvents() {
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.addEventListener('click', () => { state.aba = btn.getAttribute('data-nav'); render(); });
+  });
+  document.querySelectorAll('[data-mes]').forEach(btn => {
+    btn.addEventListener('click', () => { state.mes = btn.getAttribute('data-mes'); render(); });
+  });
+  const themeBtn = document.getElementById('themeToggle');
+  if (themeBtn) themeBtn.addEventListener('click', () => { state.dark = !state.dark; render(); });
+}
+
+render();
 </script>
 </body>
 </html>
