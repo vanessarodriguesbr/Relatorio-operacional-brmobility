@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <title>BRMobility - Dashboard Operacional</title>
+<!-- Firebase SDK (compat, funciona sem build/módulos) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   * { box-sizing: border-box; margin:0; padding:0; }
   body { font-family: 'Inter', -apple-system, sans-serif; }
@@ -81,7 +84,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // DADOS
 // ─────────────────────────────────────────────────────────────────────────
-const mockData = {
+let mockData = {
   chamados: [
     { mes: "Jan", chamados: 184, atendidos: 171, percAtendidos: 0.93, noSLA: 155, percSLA: 0.84 },
     { mes: "Fev", chamados: 156, atendidos: 128, percAtendidos: 0.82, noSLA: 133, percSLA: 0.85 },
@@ -143,6 +146,65 @@ const fmtPct = v => (v==null?"-":`${(v*100).toFixed(1)}%`);
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 let state = { aba: "visao", mes: "Todos", dark: true };
+
+// ─────────────────────────────────────────────────────────────────────────
+// FIREBASE — substitua pelos valores do SEU projeto (Firebase Console >
+// Configurações do Projeto > Geral > Seus apps > SDK setup and configuration)
+// ─────────────────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  projectId: "SEU_PROJETO",
+  storageBucket: "SEU_PROJETO.appspot.com",
+  messagingSenderId: "SEU_SENDER_ID",
+  appId: "SEU_APP_ID"
+};
+
+let db = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch (e) {
+  console.warn("Firebase não inicializado (verifique firebaseConfig):", e);
+}
+
+// Busca os dados em /dashboard/data. Se não existir ou der erro,
+// mantém os dados locais (mockData) já definidos acima como fallback.
+async function loadDataAndRender() {
+  if (db) {
+    try {
+      const doc = await db.collection("dashboard").doc("data").get();
+      if (doc.exists) {
+        const remote = doc.data();
+        // Mescla campo a campo, preservando estrutura caso algum campo não exista ainda no Firestore
+        mockData = {
+          chamados: remote.chamados || mockData.chamados,
+          modelos: remote.modelos || mockData.modelos,
+          sintomas: remote.sintomas || mockData.sintomas,
+          desligamentos: remote.desligamentos || mockData.desligamentos,
+          substituicoes: remote.substituicoes || mockData.substituicoes,
+          custos: remote.custos || mockData.custos,
+        };
+      } else {
+        console.info("Documento dashboard/data não encontrado — usando dados locais. Use saveDataToFirebase() no console para enviar os dados atuais.");
+      }
+    } catch (e) {
+      console.warn("Erro ao buscar dados do Firestore — usando dados locais:", e);
+    }
+  }
+  loadDataAndRender();}
+
+// Função utilitária: roda no console do navegador para enviar o mockData
+// atual (local) para o Firestore pela primeira vez (seed inicial).
+window.saveDataToFirebase = async function() {
+  if (!db) { console.error("Firebase não inicializado."); return; }
+  try {
+    await db.collection("dashboard").doc("data").set(mockData);
+    console.info("Dados enviados ao Firestore com sucesso.");
+  } catch (e) {
+    console.error("Erro ao salvar no Firestore:", e);
+  }
+};
 
 function applyTheme() {
   const dark = state.dark;
