@@ -78,18 +78,29 @@
   .tooltip-box { position:absolute; background:var(--tt-bg); border:1px solid var(--tt-border); border-radius:8px; padding:10px 14px; font-size:12px; color:var(--tt-text); line-height:1.7; min-width:170px; pointer-events:none; z-index:10; box-shadow:0 4px 14px rgba(0,0,0,0.15); }
 
   /* LOGIN */
-  .login-wrap { height:100vh; display:flex; align-items:center; justify-content:center; background:#0f1117; font-family:'Inter',-apple-system,sans-serif; }
-  .login-box { width:100%; max-width:360px; background:#1e2130; border:1px solid #2e3250; border-radius:16px; padding:32px 28px; }
-  .login-logo { width:44px; height:44px; border-radius:10px; background:#4f63f7; display:flex; align-items:center; justify-content:center; color:#fff; font-size:20px; margin:0 auto 16px; }
-  .login-title { text-align:center; font-size:16px; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
-  .login-sub { text-align:center; font-size:12px; color:#8890aa; margin-bottom:24px; }
-  .login-field { margin-bottom:14px; }
-  .login-field label { display:block; font-size:12px; color:#8890aa; margin-bottom:6px; }
-  .login-field input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #2e3250; background:#0f1117; color:#f1f5f9; font-size:13px; outline:none; }
-  .login-field input:focus { border-color:#4f63f7; }
-  .login-btn { width:100%; padding:11px; border-radius:8px; border:none; background:#4f63f7; color:#fff; font-size:13px; font-weight:600; cursor:pointer; margin-top:6px; }
-  .login-btn:disabled { opacity:0.6; cursor:not-allowed; }
-  .login-error { font-size:12px; color:#ef4444; margin-top:10px; text-align:center; min-height:14px; }
+  .login-page { min-height:100vh; background:#eef1f3; font-family:'Inter',-apple-system,sans-serif; display:flex; flex-direction:column; }
+  .login-topbar { background:#0c3b3e; padding:14px 28px; display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #145257; }
+  .login-topbar-left { display:flex; align-items:center; gap:14px; }
+  .login-topbar-logo { color:#f0a93c; font-size:20px; }
+  .login-topbar-title { color:#fff; font-size:16px; font-weight:700; text-align:center; letter-spacing:0.02em; }
+  .login-topbar-sub { color:#9fd3cf; font-size:11px; text-align:center; margin-top:2px; }
+  .login-topbar-right { display:flex; align-items:center; gap:14px; }
+  .sync-dot { display:inline-flex; align-items:center; gap:6px; color:#9fd3cf; font-size:12px; }
+  .sync-dot .dot { width:7px; height:7px; border-radius:50%; background:#3ddc84; display:inline-block; }
+  .topbar-enter-btn { display:flex; align-items:center; gap:6px; background:#fff; color:#0c3b3e; border:none; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; }
+  .login-center { flex:1; display:flex; align-items:center; justify-content:center; padding:40px 20px; }
+  .login-card { width:100%; max-width:420px; background:#fff; border-radius:18px; padding:40px 36px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.08); }
+  .login-card .lock-emoji { font-size:40px; margin-bottom:14px; }
+  .login-card h2 { font-size:19px; font-weight:700; color:#0c3b3e; margin-bottom:14px; }
+  .login-card p.desc { font-size:13px; color:#3d6b6e; line-height:1.6; margin-bottom:24px; }
+  .login-enter-btn { background:#0c3b3e; color:#fff; border:none; border-radius:10px; padding:12px 32px; font-size:14px; font-weight:600; cursor:pointer; }
+  .login-enter-btn:hover { background:#145257; }
+  .login-field { margin-bottom:14px; text-align:left; }
+  .login-field label { display:block; font-size:12px; color:#3d6b6e; margin-bottom:6px; font-weight:600; }
+  .login-field input { width:100%; padding:11px 12px; border-radius:8px; border:1px solid #d6e0e0; background:#f8fafa; color:#0c3b3e; font-size:13px; outline:none; }
+  .login-field input:focus { border-color:#0c3b3e; }
+  .login-error { font-size:12px; color:#dc2626; margin-top:10px; min-height:14px; }
+  .login-back { font-size:12px; color:#3d6b6e; margin-top:14px; cursor:pointer; text-decoration:underline; display:inline-block; }
   .logout-btn { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:8px; border:1px solid var(--card-border); background:var(--filter-bg); cursor:pointer; color:var(--text-primary); font-size:12px; width:100%; margin-top:8px; }
 </style>
 </head>
