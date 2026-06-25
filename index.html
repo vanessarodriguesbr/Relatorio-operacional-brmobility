@@ -105,7 +105,25 @@
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <div class="login-page">
+    <div class="login-topbar">
+      <div class="login-topbar-left"><span class="login-topbar-logo">⚡</span></div>
+      <div>
+        <p class="login-topbar-title">RELATÓRIO OPERACIONAL BRMOBILITY</p>
+        <p class="login-topbar-sub">Setor Operacional</p>
+      </div>
+      <div class="login-topbar-right"><span class="sync-dot"><span class="dot"></span>verificando acesso...</span></div>
+    </div>
+    <div class="login-center">
+      <div class="login-card">
+        <div class="lock-emoji">🔒</div>
+        <h2>Verificando acesso…</h2>
+        <p class="desc">Aguarde um instante.</p>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────
@@ -179,12 +197,12 @@ let state = { aba: "visao", mes: "Todos", dark: true };
 // Configurações do Projeto > Geral > Seus apps > SDK setup and configuration)
 // ─────────────────────────────────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  projectId: "SEU_PROJETO",
-  storageBucket: "SEU_PROJETO.appspot.com",
-  messagingSenderId: "SEU_SENDER_ID",
-  appId: "SEU_APP_ID"
+  apiKey: "AIzaSyDqsMVRTIyLx_r1KiMMaT_hxYZTmVA6yNw",
+  authDomain: "relatorio-operacional-7ebc5.firebaseapp.com",
+  projectId: "relatorio-operacional-7ebc5",
+  storageBucket: "relatorio-operacional-7ebc5.firebasestorage.app",
+  messagingSenderId: "263619438340",
+  appId: "1:263619438340:web:415a7dc17bca9be73cd251"
 };
 
 let db = null;
