@@ -1,3 +1,6 @@
+Aqui está o arquivo completo, atualizado, para você copiar manualmente (selecione tudo dentro do bloco abaixo, copie e cole no GitHub substituindo o conteúdo inteiro do `index.html`):
+
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -129,7 +132,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // DADOS
 // ─────────────────────────────────────────────────────────────────────────
-let mockData = {
+const mockData = {
   chamados: [
     { mes: "Jan", chamados: 184, atendidos: 171, percAtendidos: 0.93, noSLA: 155, percSLA: 0.84 },
     { mes: "Fev", chamados: 156, atendidos: 128, percAtendidos: 0.82, noSLA: 133, percSLA: 0.85 },
@@ -193,8 +196,7 @@ const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 let state = { aba: "visao", mes: "Todos", dark: true };
 
 // ─────────────────────────────────────────────────────────────────────────
-// FIREBASE — substitua pelos valores do SEU projeto (Firebase Console >
-// Configurações do Projeto > Geral > Seus apps > SDK setup and configuration)
+// FIREBASE
 // ─────────────────────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyDqsMVRTIyLx_r1KiMMaT_hxYZTmVA6yNw",
@@ -207,7 +209,7 @@ const firebaseConfig = {
 
 let db = null;
 let auth = null;
-const ALLOWED_EMAIL = "vanessa@brmobility.com"; // único e-mail autorizado a editar dados
+const ALLOWED_EMAIL = "vanessa@brmobility.com";
 
 try {
   firebase.initializeApp(firebaseConfig);
@@ -217,16 +219,63 @@ try {
   console.warn("Firebase não inicializado (verifique firebaseConfig):", e);
 }
 
+async function loadDataAndRender() {
+  render();
+}
+
+window.saveDataToFirebase = async function() {
+  if (!db) { console.error("Firebase não inicializado."); return; }
+  if (!isEditor()) { console.error("Apenas " + ALLOWED_EMAIL + " pode salvar alterações."); return; }
+  try {
+    await db.collection("dashboard").doc("data").set(mockData);
+    console.info("Dados enviados ao Firestore com sucesso.");
+  } catch (e) {
+    console.error("Erro ao salvar no Firestore:", e);
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────
 // LOGIN / AUTENTICAÇÃO
 // ─────────────────────────────────────────────────────────────────────────
-function renderLogin(errorMsg) {
-  document.getElementById('root').innerHTML = `
-    <div class="login-wrap">
-      <div class="login-box">
-        <div class="login-logo">⚡</div>
-        <p class="login-title">BRMobility — Acesso Restrito</p>
-        <p class="login-sub">Entre com seu e-mail e senha para continuar</p>
+function topbarHtml(rightContent) {
+  return `<div class="login-topbar">
+    <div class="login-topbar-left"><span class="login-topbar-logo">⚡</span></div>
+    <div>
+      <p class="login-topbar-title">RELATÓRIO OPERACIONAL BRMOBILITY</p>
+      <p class="login-topbar-sub">Setor Operacional</p>
+    </div>
+    <div class="login-topbar-right">
+      <span class="sync-dot"><span class="dot"></span>sincronizado</span>
+      ${rightContent}
+    </div>
+  </div>`;
+}
+
+function renderLoginGate() {
+  document.getElementById('root').innerHTML = `<div class="login-page">
+    ${topbarHtml(`<button class="topbar-enter-btn" id="topbarEnterBtn">🔒 Entrar</button>`)}
+    <div class="login-center">
+      <div class="login-card">
+        <div class="lock-emoji">🔒</div>
+        <h2>Acesso restrito</h2>
+        <p class="desc">Este dashboard é de uso exclusivo do Departamento de atendimento &amp; logística da Brmobility.<br>Faça login para continuar.</p>
+        <button class="login-enter-btn" id="cardEnterBtn">Entrar</button>
+      </div>
+    </div>
+  </div>`;
+  const go = () => renderLoginForm();
+  document.getElementById('topbarEnterBtn').addEventListener('click', go);
+  document.getElementById('cardEnterBtn').addEventListener('click', go);
+}
+
+function renderLoginForm(errorMsg) {
+  document.getElementById('root').innerHTML = `<div class="login-page">
+    ${topbarHtml(`<span class="sync-dot" style="color:#9fd3cf">🔒 Entrar</span>`)}
+    <div class="login-center">
+      <div class="login-card" style="text-align:left">
+        <div style="text-align:center"><div class="lock-emoji">🔒</div>
+        <h2 style="margin-bottom:6px">Entrar</h2>
+        <p class="desc" style="margin-bottom:22px">Use seu e-mail e senha autorizados.</p></div>
         <form id="loginForm">
           <div class="login-field">
             <label>E-mail</label>
@@ -236,12 +285,15 @@ function renderLogin(errorMsg) {
             <label>Senha</label>
             <input type="password" id="loginPass" placeholder="••••••••" required autocomplete="current-password" />
           </div>
-          <button type="submit" class="login-btn" id="loginBtn">Entrar</button>
-          <p class="login-error" id="loginError">${errorMsg ? esc(errorMsg) : ""}</p>
+          <button type="submit" class="login-enter-btn" id="loginBtn" style="width:100%">Entrar</button>
+          <p class="login-error" id="loginError" style="text-align:center">${errorMsg ? esc(errorMsg) : ""}</p>
         </form>
+        <p class="login-back" id="backBtn" style="display:block;text-align:center">← Voltar</p>
       </div>
-    </div>`;
+    </div>
+  </div>`;
 
+  document.getElementById('backBtn').addEventListener('click', renderLoginGate);
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('loginEmail').value.trim();
@@ -257,7 +309,6 @@ function renderLogin(errorMsg) {
     }
     try {
       await auth.signInWithEmailAndPassword(email, pass);
-      // onAuthStateChanged vai assumir o redirecionamento para o dashboard
     } catch (err) {
       errEl.textContent = "E-mail ou senha incorretos.";
       btn.disabled = false; btn.textContent = "Entrar";
@@ -267,9 +318,17 @@ function renderLogin(errorMsg) {
 
 function setupAuthGate() {
   if (!auth) {
-    // Sem Firebase Auth configurado — não bloqueia, mas avisa no console
-    console.warn("Firebase Auth não configurado — dashboard ficará acessível sem login.");
-    setupAuthGate();
+    console.error("Firebase Authentication não configurado. Acesso bloqueado.");
+    document.getElementById('root').innerHTML = `<div class="login-page">
+      ${topbarHtml(`<span class="sync-dot" style="color:#f0a93c">⚠️ Indisponível</span>`)}
+      <div class="login-center">
+        <div class="login-card">
+          <div class="lock-emoji">🔒</div>
+          <h2>Acesso restrito</h2>
+          <p class="desc">Este dashboard é de uso exclusivo do Departamento de atendimento &amp; logística da Brmobility.<br>Não foi possível verificar suas credenciais agora. Tente novamente mais tarde.</p>
+        </div>
+      </div>
+    </div>`;
     return;
   }
   auth.onAuthStateChanged(user => {
@@ -278,7 +337,7 @@ function setupAuthGate() {
       loadDataAndRender();
     } else {
       currentUser = null;
-      renderLogin();
+      renderLoginGate();
     }
   });
 }
@@ -291,62 +350,6 @@ function isEditor() {
 window.logout = function() {
   if (auth) auth.signOut();
 };
-
-// Busca os dados em /dashboard/data. Se não existir ou der erro,
-// mantém os dados locais (mockData) já definidos acima como fallback.
-async function loadDataAndRender() {
-  if (db) {
-    try {
-      const doc = await db.collection("dashboard").doc("data").get();
-      if (doc.exists) {
-        const remote = doc.data();
-        // Mescla campo a campo, preservando estrutura caso algum campo não exista ainda no Firestore
-        mockData = {
-          chamados: remote.chamados || mockData.chamados,
-          modelos: remote.modelos || mockData.modelos,
-          sintomas: remote.sintomas || mockData.sintomas,
-          desligamentos: remote.desligamentos || mockData.desligamentos,
-          substituicoes: remote.substituicoes || mockData.substituicoes,
-          custos: remote.custos || mockData.custos,
-        };
-      } else {
-        console.info("Documento dashboard/data não encontrado — usando dados locais. Use saveDataToFirebase() no console para enviar os dados atuais.");
-      }
-    } catch (e) {
-      console.warn("Erro ao buscar dados do Firestore — usando dados locais:", e);
-    }
-  }
-  loadDataAndRender();}
-
-// Função utilitária: roda no console do navegador para enviar o mockData
-// atual (local) para o Firestore pela primeira vez (seed inicial).
-window.saveDataToFirebase = async function() {
-  if (!db) { console.error("Firebase não inicializado."); return; }
-  if (!isEditor()) { console.error("Apenas " + ALLOWED_EMAIL + " pode salvar alterações."); return; }
-  try {
-    await db.collection("dashboard").doc("data").set(mockData);
-    console.info("Dados enviados ao Firestore com sucesso.");
-  } catch (e) {
-    console.error("Erro ao salvar no Firestore:", e);
-  }
-};
-
-function applyTheme() {
-  const dark = state.dark;
-  const theme = dark ? {
-    "--bg":"#0f1117","--sidebar-bg":"#1a1d27","--card-bg":"#1e2130","--card-border":"#2e3250",
-    "--text-primary":"#f1f5f9","--text-muted":"#8890aa","--chart-grid":"#2e3250","--bar-bg":"#2e3250",
-    "--tt-bg":"#1e2130","--tt-border":"#2e3250","--tt-text":"#f1f5f9",
-    "--header-bg":"#1a1d27","--nav-hover":"#252a3a","--nav-active":"#252a3a","--filter-bg":"#1e2130",
-  } : {
-    "--bg":"#f8f9fc","--sidebar-bg":"#ffffff","--card-bg":"#ffffff","--card-border":"#e8eaf2",
-    "--text-primary":"#1a1d2e","--text-muted":"#6b7280","--chart-grid":"#f1f3f9","--bar-bg":"#f1f3f9",
-    "--tt-bg":"#ffffff","--tt-border":"#e8eaf2","--tt-text":"#1a1d2e",
-    "--header-bg":"#ffffff","--nav-hover":"#f0f2fc","--nav-active":"#eef0fc","--filter-bg":"#f0f2fc",
-  };
-  const root = document.documentElement;
-  Object.entries(theme).forEach(([k,v]) => root.style.setProperty(k,v));
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // HBAR
@@ -380,9 +383,9 @@ function kpiCard({ label, value, sub, color="#5b7cf5" }) {
 function sectionTitle(txt) { return `<h3 class="section-title">${esc(txt)}</h3>`; }
 
 // ─────────────────────────────────────────────────────────────────────────
-// MINI AREA CHART (SVG) — substitui recharts
+// MINI AREA CHART (SVG)
 // ─────────────────────────────────────────────────────────────────────────
-function miniAreaCard({ title, icon, color, dataKey, formatValue, getTooltipExtra, idSuffix }) {
+function miniAreaCard({ title, icon, color, dataKey, idSuffix }) {
   const data = mockData.chamados.map((c,i) => ({
     mes: c.mes,
     val: mockData.custos[i][dataKey] !== undefined ? mockData.custos[i][dataKey] : mockData.chamados[i].noSLA
@@ -897,6 +900,23 @@ function render() {
   }
 }
 
+function applyTheme() {
+  const dark = state.dark;
+  const theme = dark ? {
+    "--bg":"#0f1117","--sidebar-bg":"#1a1d27","--card-bg":"#1e2130","--card-border":"#2e3250",
+    "--text-primary":"#f1f5f9","--text-muted":"#8890aa","--chart-grid":"#2e3250","--bar-bg":"#2e3250",
+    "--tt-bg":"#1e2130","--tt-border":"#2e3250","--tt-text":"#f1f5f9",
+    "--header-bg":"#1a1d27","--nav-hover":"#252a3a","--nav-active":"#252a3a","--filter-bg":"#1e2130",
+  } : {
+    "--bg":"#f8f9fc","--sidebar-bg":"#ffffff","--card-bg":"#ffffff","--card-border":"#e8eaf2",
+    "--text-primary":"#1a1d2e","--text-muted":"#6b7280","--chart-grid":"#f1f3f9","--bar-bg":"#f1f3f9",
+    "--tt-bg":"#ffffff","--tt-border":"#e8eaf2","--tt-text":"#1a1d2e",
+    "--header-bg":"#ffffff","--nav-hover":"#f0f2fc","--nav-active":"#eef0fc","--filter-bg":"#f0f2fc",
+  };
+  const root = document.documentElement;
+  Object.entries(theme).forEach(([k,v]) => root.style.setProperty(k,v));
+}
+
 function attachEvents() {
   document.querySelectorAll('[data-nav]').forEach(btn => {
     btn.addEventListener('click', () => { state.aba = btn.getAttribute('data-nav'); render(); });
@@ -908,7 +928,10 @@ function attachEvents() {
   if (themeBtn) themeBtn.addEventListener('click', () => { state.dark = !state.dark; render(); });
 }
 
-render();
+setupAuthGate();
 </script>
 </body>
 </html>
+```
+
+**Importante:** copie tudo, do `<!DOCTYPE html>` até o `</html>` no final — substitua **o arquivo inteiro** no GitHub, não apenas um trecho. Depois do commit, teste em aba anônima.
