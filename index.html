@@ -6,6 +6,7 @@
 <!-- Firebase SDK (compat, funciona sem build/módulos) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
   * { box-sizing: border-box; margin:0; padding:0; }
   body { font-family: 'Inter', -apple-system, sans-serif; }
@@ -75,6 +76,21 @@
   .risk-text { font-size:12px; margin:0 0 6px; color:#374151; }
   .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
   .tooltip-box { position:absolute; background:var(--tt-bg); border:1px solid var(--tt-border); border-radius:8px; padding:10px 14px; font-size:12px; color:var(--tt-text); line-height:1.7; min-width:170px; pointer-events:none; z-index:10; box-shadow:0 4px 14px rgba(0,0,0,0.15); }
+
+  /* LOGIN */
+  .login-wrap { height:100vh; display:flex; align-items:center; justify-content:center; background:#0f1117; font-family:'Inter',-apple-system,sans-serif; }
+  .login-box { width:100%; max-width:360px; background:#1e2130; border:1px solid #2e3250; border-radius:16px; padding:32px 28px; }
+  .login-logo { width:44px; height:44px; border-radius:10px; background:#4f63f7; display:flex; align-items:center; justify-content:center; color:#fff; font-size:20px; margin:0 auto 16px; }
+  .login-title { text-align:center; font-size:16px; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
+  .login-sub { text-align:center; font-size:12px; color:#8890aa; margin-bottom:24px; }
+  .login-field { margin-bottom:14px; }
+  .login-field label { display:block; font-size:12px; color:#8890aa; margin-bottom:6px; }
+  .login-field input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #2e3250; background:#0f1117; color:#f1f5f9; font-size:13px; outline:none; }
+  .login-field input:focus { border-color:#4f63f7; }
+  .login-btn { width:100%; padding:11px; border-radius:8px; border:none; background:#4f63f7; color:#fff; font-size:13px; font-weight:600; cursor:pointer; margin-top:6px; }
+  .login-btn:disabled { opacity:0.6; cursor:not-allowed; }
+  .login-error { font-size:12px; color:#ef4444; margin-top:10px; text-align:center; min-height:14px; }
+  .logout-btn { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:8px; border:1px solid var(--card-border); background:var(--filter-bg); cursor:pointer; color:var(--text-primary); font-size:12px; width:100%; margin-top:8px; }
 </style>
 </head>
 <body>
@@ -161,12 +177,91 @@ const firebaseConfig = {
 };
 
 let db = null;
+let auth = null;
+const ALLOWED_EMAIL = "vanessa@brmobility.com"; // único e-mail autorizado a editar dados
+
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
+  auth = firebase.auth();
 } catch (e) {
   console.warn("Firebase não inicializado (verifique firebaseConfig):", e);
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// LOGIN / AUTENTICAÇÃO
+// ─────────────────────────────────────────────────────────────────────────
+function renderLogin(errorMsg) {
+  document.getElementById('root').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-box">
+        <div class="login-logo">⚡</div>
+        <p class="login-title">BRMobility — Acesso Restrito</p>
+        <p class="login-sub">Entre com seu e-mail e senha para continuar</p>
+        <form id="loginForm">
+          <div class="login-field">
+            <label>E-mail</label>
+            <input type="email" id="loginEmail" placeholder="seu@email.com" required autocomplete="username" />
+          </div>
+          <div class="login-field">
+            <label>Senha</label>
+            <input type="password" id="loginPass" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+          <button type="submit" class="login-btn" id="loginBtn">Entrar</button>
+          <p class="login-error" id="loginError">${errorMsg ? esc(errorMsg) : ""}</p>
+        </form>
+      </div>
+    </div>`;
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass = document.getElementById('loginPass').value;
+    const btn = document.getElementById('loginBtn');
+    const errEl = document.getElementById('loginError');
+    btn.disabled = true; btn.textContent = "Entrando...";
+    errEl.textContent = "";
+    if (!auth) {
+      errEl.textContent = "Firebase Authentication não configurado.";
+      btn.disabled = false; btn.textContent = "Entrar";
+      return;
+    }
+    try {
+      await auth.signInWithEmailAndPassword(email, pass);
+      // onAuthStateChanged vai assumir o redirecionamento para o dashboard
+    } catch (err) {
+      errEl.textContent = "E-mail ou senha incorretos.";
+      btn.disabled = false; btn.textContent = "Entrar";
+    }
+  });
+}
+
+function setupAuthGate() {
+  if (!auth) {
+    // Sem Firebase Auth configurado — não bloqueia, mas avisa no console
+    console.warn("Firebase Auth não configurado — dashboard ficará acessível sem login.");
+    setupAuthGate();
+    return;
+  }
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      currentUser = user;
+      loadDataAndRender();
+    } else {
+      currentUser = null;
+      renderLogin();
+    }
+  });
+}
+
+let currentUser = null;
+function isEditor() {
+  return currentUser && currentUser.email && currentUser.email.toLowerCase() === ALLOWED_EMAIL;
+}
+
+window.logout = function() {
+  if (auth) auth.signOut();
+};
 
 // Busca os dados em /dashboard/data. Se não existir ou der erro,
 // mantém os dados locais (mockData) já definidos acima como fallback.
@@ -198,6 +293,7 @@ async function loadDataAndRender() {
 // atual (local) para o Firestore pela primeira vez (seed inicial).
 window.saveDataToFirebase = async function() {
   if (!db) { console.error("Firebase não inicializado."); return; }
+  if (!isEditor()) { console.error("Apenas " + ALLOWED_EMAIL + " pode salvar alterações."); return; }
   try {
     await db.collection("dashboard").doc("data").set(mockData);
     console.info("Dados enviados ao Firestore com sucesso.");
@@ -717,6 +813,8 @@ function renderSidebar() {
           <div class="toggle-dot" style="left:${state.dark?'16px':'3px'}"></div>
         </div>
       </button>
+      ${currentUser ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding:0 2px">Logado como<br><strong style="color:var(--text-primary)">${esc(currentUser.email)}</strong></div>
+      <button class="logout-btn" onclick="logout()">🚪 Sair</button>` : ""}
     </div>
   </div>`;
 }
