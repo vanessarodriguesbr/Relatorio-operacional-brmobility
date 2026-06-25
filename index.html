@@ -1,0 +1,907 @@
+import { useState } from "react";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend, BarChart, Bar, Cell
+} from "recharts";
+import {
+  LayoutDashboard, Zap, Wrench, PowerOff, RefreshCw,
+  DollarSign, AlertTriangle, Sun, Moon, TrendingUp, TrendingDown,
+  ChevronRight, Info, Phone
+} from "lucide-react";
+
+const mockData = {
+  chamados: [
+    { mes: "Jan", chamados: 184, atendidos: 171, percAtendidos: 0.93, noSLA: 155, percSLA: 0.84 },
+    { mes: "Fev", chamados: 156, atendidos: 128, percAtendidos: 0.82, noSLA: 133, percSLA: 0.85 },
+    { mes: "Mar", chamados: 183, atendidos: 148, percAtendidos: 0.81, noSLA: 130, percSLA: 0.71 },
+    { mes: "Abr", chamados: 213, atendidos: 159, percAtendidos: 0.74, noSLA: 121, percSLA: 0.56 },
+    { mes: "Mai", chamados: 168, atendidos: 134, percAtendidos: 0.80, noSLA: 123, percSLA: 0.73 },
+  ],
+  modelos: {
+    Jan: [{ pos:"1º",modelo:"S9",qtd:41,perc:22},{pos:"2º",modelo:"S8",qtd:38,perc:21},{pos:"3º",modelo:"I2",qtd:21,perc:11},{pos:"4º",modelo:"S10",qtd:20,perc:11},{pos:"5º",modelo:"BR8",qtd:15,perc:8}],
+    Fev: [{ pos:"1º",modelo:"S8",qtd:26,perc:17},{pos:"2º",modelo:"I2",qtd:25,perc:16},{pos:"3º",modelo:"S9",qtd:23,perc:15},{pos:"4º",modelo:"S10",qtd:15,perc:10},{pos:"5º",modelo:"BR8",qtd:11,perc:7}],
+    Mar: [{ pos:"1º",modelo:"S9",qtd:46,perc:25},{pos:"2º",modelo:"S8",qtd:28,perc:15},{pos:"3º",modelo:"I2",qtd:24,perc:13},{pos:"4º",modelo:"BR8",qtd:22,perc:12},{pos:"5º",modelo:"S10",qtd:18,perc:10}],
+    Abr: [{ pos:"1º",modelo:"S9",qtd:45,perc:21},{pos:"2º",modelo:"S8",qtd:35,perc:16},{pos:"3º",modelo:"I2",qtd:23,perc:11},{pos:"4º",modelo:"S10",qtd:19,perc:9},{pos:"5º",modelo:"BR8",qtd:16,perc:7}],
+    Mai: [{ pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",qtd:22,perc:13},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
+  },
+  sintomas: {
+    Jan: [{ pos:"1º",sintoma:"Pneus",qtd:47,perc:26},{pos:"2º",sintoma:"Carregadores",qtd:35,perc:19},{pos:"3º",sintoma:"Inclinando/girando",qtd:14,perc:8},{pos:"4º",sintoma:"Torre/postura",qtd:14,perc:8},{pos:"5º",sintoma:"Não carrega/bateria",qtd:13,perc:7}],
+    Fev: [{ pos:"1º",sintoma:"Pneus",qtd:35,perc:22},{pos:"2º",sintoma:"Pane/desligamento",qtd:12,perc:8},{pos:"3º",sintoma:"Improcedente",qtd:12,perc:8},{pos:"4º",sintoma:"Carregador",qtd:11,perc:7},{pos:"5º",sintoma:"Controle",qtd:8,perc:5}],
+    Mar: [{ pos:"1º",sintoma:"Pneus",qtd:38,perc:21},{pos:"2º",sintoma:"Bateria/não carrega",qtd:21,perc:11},{pos:"3º",sintoma:"Guidão/postura",qtd:21,perc:11},{pos:"4º",sintoma:"Pane/desligamento",qtd:20,perc:11},{pos:"5º",sintoma:"Carregador",qtd:20,perc:11}],
+    Abr: [{ pos:"1º",sintoma:"Pneus",qtd:52,perc:24},{pos:"2º",sintoma:"Pane/desligamento",qtd:31,perc:14},{pos:"3º",sintoma:"Carregador",qtd:27,perc:13},{pos:"4º",sintoma:"Guidão/postura",qtd:24,perc:11},{pos:"5º",sintoma:"Não carrega/bateria",qtd:17,perc:8}],
+    Mai: [{ pos:"1º",sintoma:"Pneus",qtd:25,perc:21},{pos:"2º",sintoma:"Pane/desligamento",qtd:32,perc:19},{pos:"3º",sintoma:"Guidão/postura",qtd:31,perc:18},{pos:"4º",sintoma:"Não carrega/bateria",qtd:15,perc:9},{pos:"5º",sintoma:"Controle",qtd:8,perc:5}],
+  },
+  desligamentos: [
+    { mes:"Jan",desligamentos:3,perc:0.02},{ mes:"Fev",desligamentos:17,perc:0.11},
+    { mes:"Mar",desligamentos:12,perc:0.07},{ mes:"Abr",desligamentos:18,perc:0.08},{ mes:"Mai",desligamentos:18,perc:0.11},
+  ],
+  substituicoes: [
+    { mes:"Jan",trocas:29,perc:0.16},{ mes:"Fev",trocas:25,perc:0.16},
+    { mes:"Mar",trocas:28,perc:0.15},{ mes:"Abr",trocas:17,perc:0.08},{ mes:"Mai",trocas:34,perc:0.20},
+  ],
+  custos: [
+    { mes:"Jan",chamados:184,faturamento:661557.44,desconto:1815.95,transportadora:27416.28,ats:16974.67},
+    { mes:"Fev",chamados:156,faturamento:658323.81,desconto:0,transportadora:8396.77,ats:12995.80},
+    { mes:"Mar",chamados:183,faturamento:665968.97,desconto:8628.41,transportadora:5862.51,ats:13769.14},
+    { mes:"Abr",chamados:213,faturamento:665202.69,desconto:12658.60,transportadora:19294.81,ats:16140.92},
+    { mes:"Mai",chamados:168,faturamento:672777.37,desconto:7615.61,transportadora:17316.04,ats:17934.87},
+  ],
+};
+
+const MESES = ["Todos","Jan","Fev","Mar","Abr","Mai"];
+const MES_FULL = { Jan:"Janeiro",Fev:"Fevereiro",Mar:"Março",Abr:"Abril",Mai:"Maio" };
+
+const NAV = [
+  { id:"visao", label:"Visão Geral", icon:LayoutDashboard },
+  { id:"chamados", label:"Chamados", icon:Phone },
+  { id:"modelos", label:"Modelos", icon:Zap },
+  { id:"sintomas", label:"Sintomas", icon:Wrench },
+  { id:"desligamentos", label:"Desligamentos", icon:PowerOff },
+  { id:"trocas", label:"Trocas de Equipamentos", icon:RefreshCw },
+  { id:"custos", label:"Custos Operacionais", icon:DollarSign },
+  { id:"atencao", label:"Pontos de Atenção", icon:AlertTriangle },
+];
+
+const fmt = v => v?.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}) ?? "-";
+const fmtR = v => v != null ? `R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "-";
+const fmtPct = v => v != null ? `${(v*100).toFixed(1)}%` : "-";
+
+// ─── Horizontal bar ──────────────────────────────────────────────────────────
+// labelWidth: allows callers to control the fixed label column width in px
+function HBar({ value, max, color, label, valueLabel, height=18, labelWidth=28 }) {
+  const pct = Math.min((value / max) * 100, 100);
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+      <span style={{ width:labelWidth, fontSize:12, color:"var(--text-muted)", fontWeight:600, flexShrink:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{label}</span>
+      <div style={{ flex:1, height, background:"var(--bar-bg)", borderRadius:height/2, overflow:"hidden", position:"relative" }}>
+        <div style={{
+          height:"100%", width:`${pct}%`, background:color,
+          borderRadius:height/2, transition:"width 0.4s ease",
+          position:"relative"
+        }}>
+          <div style={{
+            position:"absolute", right:4, top:"50%", transform:"translateY(-50%)",
+            width:10, height:10, borderRadius:"50%", background:"rgba(255,255,255,0.6)"
+          }} />
+        </div>
+      </div>
+      <span style={{ width:42, fontSize:12, color:"var(--text-primary)", fontWeight:600, textAlign:"right", flexShrink:0 }}>{valueLabel}</span>
+    </div>
+  );
+}
+
+// ─── SintomaHBar: auto-sizes label column to longest label in set ────────────
+function SintomaHBarSet({ rows, color, height=20 }) {
+  // Measure label widths via a rough char-count heuristic (≈7px per char at 12px font)
+  const maxLen = Math.max(...rows.map(r => r.label.length));
+  const labelWidth = Math.min(Math.max(maxLen * 7, 40), 180);
+  const maxVal = Math.max(...rows.map(r => r.value));
+  return (
+    <div>
+      {rows.map((r, i) => (
+        <HBar key={i} label={r.label} value={r.value} max={maxVal} color={color} valueLabel={r.valueLabel} height={height} labelWidth={labelWidth} />
+      ))}
+    </div>
+  );
+}
+
+function SectionTitle({ children }) {
+  return <h3 style={{ fontSize:13,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em",color:"var(--text-muted)",margin:"0 0 14px" }}>{children}</h3>;
+}
+
+function KpiCard({ label, value, sub, color="#5b7cf5" }) {
+  return (
+    <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:12,padding:"16px 20px",flex:"1 1 160px" }}>
+      <p style={{ fontSize:12,color:"var(--text-muted)",margin:"0 0 6px" }}>{label}</p>
+      <p style={{ fontSize:26,fontWeight:700,color,margin:0 }}>{value}</p>
+      {sub && <p style={{ fontSize:11,color:"var(--text-muted)",marginTop:4 }}>{sub}</p>}
+    </div>
+  );
+}
+
+function MiniAreaCard({ title, icon, color, data, dataKey, formatValue, getTooltipExtra }) {
+  return (
+    <div style={{ flex:"1 1 200px", background:"var(--card-bg)", border:`1px solid var(--card-border)`, borderRadius:12, padding:"14px 16px" }}>
+      <p style={{ fontSize:11, fontWeight:700, color, textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 10px", display:"flex", alignItems:"center", gap:6 }}>
+        <span style={{ fontSize:14 }}>{icon}</span>{title}
+      </p>
+      <div style={{ height:160 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top:6, right:6, bottom:0, left:0 }}>
+            <defs>
+              <linearGradient id={`grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={color} stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+            <XAxis dataKey="mes" tick={{ fontSize:11, fill:"var(--text-muted)" }} />
+            <YAxis tick={{ fontSize:10, fill:"var(--text-muted)" }} tickFormatter={v => {
+              if (v >= 1000) return `${(v/1000).toFixed(0)}k`;
+              return v;
+            }} width={32} />
+            <Tooltip content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const idx = mockData.chamados.findIndex(c => c.mes === label);
+              const extra = getTooltipExtra ? getTooltipExtra(idx) : null;
+              return (
+                <div style={{ background:"var(--tt-bg)", border:"1px solid var(--tt-border)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"var(--tt-text)", lineHeight:1.7, minWidth:160 }}>
+                  <p style={{ fontWeight:700, marginBottom:4 }}>{label}</p>
+                  <p style={{ color }}>{formatValue(payload[0].value)}</p>
+                  {extra && <>
+                    <p style={{ color:"var(--text-muted)", fontSize:11 }}>⚡ Sintoma: <b>{extra.sintoma}</b></p>
+                    <p style={{ color:"var(--text-muted)", fontSize:11 }}>🚲 Modelo: <b>{extra.modelo}</b></p>
+                    <p style={{ color:"var(--text-muted)", fontSize:11 }}>Chamados: <b>{extra.chamados}</b></p>
+                    <p style={{ color:"var(--text-muted)", fontSize:11 }}>Trocas: <b>{extra.trocas}</b></p>
+                  </>}
+                </div>
+              );
+            }} />
+            <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fill={`url(#grad-${dataKey})`} dot={{ r:3.5, fill:color, strokeWidth:0 }} activeDot={{ r:5 }} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VISÃO GERAL
+// ─────────────────────────────────────────────────────────────────────────────
+function TabVisaoGeral({ mesFiltro }) {
+  const chamados = mockData.chamados;
+  const custos = mockData.custos;
+  const maxChamados = Math.max(...chamados.map(c => c.chamados));
+
+  const areaData = chamados.map((c, i) => ({
+    mes: c.mes,
+    desconto: custos[i].desconto,
+    transportadora: custos[i].transportadora,
+    ats: custos[i].ats,
+    slaCount: c.noSLA,
+  }));
+
+  const getExtra = (idx) => {
+    if (idx < 0) return null;
+    const mesKey = mockData.chamados[idx]?.mes;
+    return {
+      sintoma: mockData.sintomas[mesKey]?.[0]?.sintoma ?? "-",
+      modelo: mockData.modelos[mesKey]?.[0]?.modelo ?? "-",
+      chamados: mockData.chamados[idx]?.chamados,
+      trocas: mockData.substituicoes[idx]?.trocas,
+    };
+  };
+
+  if (mesFiltro === "Todos") {
+    return (
+      <div>
+        <div style={{ background:"var(--card-bg)", border:"1px solid var(--card-border)", borderRadius:14, padding:"20px 24px", marginBottom:28 }}>
+          <p style={{ fontWeight:700, fontSize:15, color:"var(--text-primary)", marginBottom:18 }}>Comparativo Mensal — Chamados e SLA</p>
+          <div style={{ borderBottom:"1px solid var(--card-border)", paddingBottom:20, marginBottom:20 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>TOTAL DE CHAMADOS</p>
+            {chamados.map(c => (
+              <HBar key={c.mes} label={c.mes} value={c.chamados} max={maxChamados} color="#5b7cf5" valueLabel={String(c.chamados)} height={20} />
+            ))}
+          </div>
+          <div>
+            <p style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>SLA CUMPRIDO (%)</p>
+            {chamados.map(c => (
+              <HBar key={c.mes} label={c.mes} value={c.percSLA * 100} max={100}
+                color={c.percSLA >= 0.8 ? "#22c55e" : c.percSLA >= 0.7 ? "#f97316" : "#ef4444"}
+                valueLabel={`${Math.round(c.percSLA * 100)}%`} height={20} />
+            ))}
+          </div>
+        </div>
+
+        <p style={{ fontWeight:700, fontSize:14, color:"var(--text-primary)", marginBottom:6 }}>Evolução de Custos Operacionais — Jan a Mai</p>
+        <p style={{ fontSize:12, color:"var(--text-muted)", marginBottom:16 }}>Passe o mouse sobre cada gráfico para ver o principal sintoma e modelo recorrente daquele mês.</p>
+        <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:28 }}>
+          <MiniAreaCard title="Descontos" icon="🏷️" color="#ef4444" data={areaData} dataKey="desconto" formatValue={fmtR} getTooltipExtra={getExtra} />
+          <MiniAreaCard title="Gastos com Transportadora" icon="🚚" color="#f59e0b" data={areaData} dataKey="transportadora" formatValue={fmtR} getTooltipExtra={getExtra} />
+          <MiniAreaCard title="Gastos com ATS" icon="🔧" color="#8b5cf6" data={areaData} dataKey="ats" formatValue={fmtR} getTooltipExtra={getExtra} />
+          <MiniAreaCard title="Chamados no SLA" icon="📊" color="#22c55e" data={areaData} dataKey="slaCount" formatValue={v => `${fmt(v)} chamados`} getTooltipExtra={getExtra} />
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:28 }}>
+          <div style={{ background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:12,padding:"16px 18px" }}>
+            <p style={{ fontWeight:700,color:"#15803d",fontSize:13,margin:"0 0 10px",display:"flex",alignItems:"center",gap:6 }}><TrendingUp size={16}/>O que melhorou</p>
+            {["Faturamento cresceu +1,7% de Jan a Mai (R$661K → R$672K)","Descontos em Fevereiro foram zero — melhor mês do período","Trocas de equipamentos em Abril atingiram mínima (17 trocas)","Custo de transportadora em Março foi o menor do período (R$5.862)"].map((t,i) => (
+              <p key={i} style={{ fontSize:12,color:"#166534",margin:"4px 0",paddingLeft:14,position:"relative" }}><span style={{ position:"absolute",left:0 }}>•</span>{t}</p>
+            ))}
+          </div>
+          <div style={{ background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"16px 18px" }}>
+            <p style={{ fontWeight:700,color:"#b91c1c",fontSize:13,margin:"0 0 10px",display:"flex",alignItems:"center",gap:6 }}><TrendingDown size={16}/>O que piorou</p>
+            {["SLA despencou 29pp em Abril (85% → 56%) — pior do período","Desligamentos subiram de 3 (Jan) para 18 (Abr/Mai) — alta de 500%","Chamados em Abril bateram recorde: 213 — +16% vs média","Custo de transportadora em Jan (R$27K) e Abr (R$19K) elevado"].map((t,i) => (
+              <p key={i} style={{ fontSize:12,color:"#991b1b",margin:"4px 0",paddingLeft:14,position:"relative" }}><span style={{ position:"absolute",left:0 }}>•</span>{t}</p>
+            ))}
+          </div>
+        </div>
+        <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:12,padding:"18px 20px" }}>
+          <SectionTitle>Diagnósticos Estratégicos</SectionTitle>
+          {[
+            { titulo:"Degradação de SLA em Abril", texto:"O SLA de Abril (56%) representou queda crítica, principalmente associada ao caso Multiplan/Barra Shopping. Recomenda-se revisão do protocolo de escalonamento para chamados de grande volume e definição de SLA diferenciado por conta estratégica." },
+            { titulo:"Escalada de Desligamentos", texto:"O crescimento de desligamentos de 3 (Jan) para 18 (Abr/Mai) sugere deterioração de frota ou processo de cobrança. Ação prioritária: auditoria dos equipamentos com mais de 18 meses de campo e revisão da política de desligamento por inadimplência." },
+            { titulo:"Pneu como principal sintoma recorrente", texto:"Em todos os meses, Pneus liderou o ranking de sintomas. Esse padrão aponta para frota envelhecida ou rotas com piso agressivo. Plano de ação: programa preventivo de inspeção de pneus a cada 3 meses por contrato." },
+          ].map(({ titulo, texto }, i) => (
+            <div key={i} style={{ borderLeft:"3px solid #5b7cf5",paddingLeft:14,marginBottom:16 }}>
+              <p style={{ fontWeight:600,fontSize:13,margin:"0 0 4px",color:"var(--text-primary)" }}>{titulo}</p>
+              <p style={{ fontSize:12,color:"var(--text-muted)",margin:0,lineHeight:1.6 }}>{texto}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const idx = mockData.chamados.findIndex(c => c.mes === mesFiltro);
+  const c = chamados[idx];
+  const desl = mockData.desligamentos[idx];
+  const modelos = mockData.modelos[mesFiltro] || [];
+  const sintomas = mockData.sintomas[mesFiltro] || [];
+  return (
+    <div>
+      <p style={{ fontSize:13,color:"var(--text-muted)",marginBottom:20 }}>Dados de <strong>{MES_FULL[mesFiltro]}</strong></p>
+      <div style={{ display:"flex",gap:12,flexWrap:"wrap",marginBottom:32 }}>
+        <KpiCard label="Total de Chamados" value={fmt(c.chamados)} color="#5b7cf5" />
+        <KpiCard label="Encerrados no Mês" value={fmt(c.atendidos)} sub={fmtPct(c.percAtendidos)+" do total"} color="#22c55e" />
+        <KpiCard label="SLA Cumprido" value={fmtPct(c.percSLA)} color={c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444"} />
+        <KpiCard label="Desligamentos" value={fmt(desl.desligamentos)} sub={fmtPct(desl.perc)+" da frota"} color="#f97316" />
+      </div>
+      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:20 }}>
+        <div>
+          <SectionTitle>Top 5 Modelos mais acionados</SectionTitle>
+          {modelos.map((m,i) => (
+            <div key={i} style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
+              <span style={{ width:24,height:24,borderRadius:6,background:"#5b7cf5",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center" }}>{i+1}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",marginBottom:3 }}>
+                  <span style={{ fontSize:13,fontWeight:600,color:"var(--text-primary)" }}>{m.modelo}</span>
+                  <span style={{ fontSize:12,color:"var(--text-muted)" }}>{m.qtd} ({m.perc}%)</span>
+                </div>
+                <div style={{ height:6,background:"var(--bar-bg)",borderRadius:4,overflow:"hidden" }}>
+                  <div style={{ height:"100%",width:`${m.perc*2.5}%`,background:"#5b7cf5",borderRadius:4 }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div>
+          <SectionTitle>Top 5 Sintomas mais frequentes</SectionTitle>
+          {sintomas.map((s,i) => (
+            <div key={i} style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
+              <span style={{ width:24,height:24,borderRadius:6,background:"#f97316",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center" }}>{i+1}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",marginBottom:3 }}>
+                  <span style={{ fontSize:13,fontWeight:600,color:"var(--text-primary)" }}>{s.sintoma}</span>
+                  <span style={{ fontSize:12,color:"var(--text-muted)" }}>{s.qtd} ({s.perc}%)</span>
+                </div>
+                <div style={{ height:6,background:"var(--bar-bg)",borderRadius:4,overflow:"hidden" }}>
+                  <div style={{ height:"100%",width:`${s.perc*2.5}%`,background:"#f97316",borderRadius:4 }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAMADOS
+// ─────────────────────────────────────────────────────────────────────────────
+function TabChamados({ mesFiltro }) {
+  const data = mesFiltro === "Todos" ? mockData.chamados : mockData.chamados.filter(c => c.mes === mesFiltro);
+  const maxC = Math.max(...mockData.chamados.map(c => c.chamados));
+  const maxA = Math.max(...mockData.chamados.map(c => c.atendidos));
+
+  if (mesFiltro === "Todos") {
+    return (
+      <div>
+        <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24 }}>
+          <div style={{ borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20 }}>
+            <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12 }}>TOTAL DE CHAMADOS</p>
+            {data.map(c => <HBar key={c.mes} label={c.mes} value={c.chamados} max={maxC} color="#5b7cf5" valueLabel={String(c.chamados)} height={20} />)}
+          </div>
+          <div style={{ borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20 }}>
+            <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12 }}>ATENDIDOS NO MÊS</p>
+            {data.map(c => <HBar key={c.mes} label={c.mes} value={c.atendidos} max={maxA} color="#22c55e" valueLabel={String(c.atendidos)} height={20} />)}
+          </div>
+          <div>
+            <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12 }}>SLA CUMPRIDO (%)</p>
+            {data.map(c => <HBar key={c.mes} label={c.mes} value={c.percSLA*100} max={100} color={c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444"} valueLabel={`${Math.round(c.percSLA*100)}%`} height={20} />)}
+          </div>
+        </div>
+        <ChamadosTable data={data} />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display:"flex",gap:12,flexWrap:"wrap",marginBottom:24 }}>
+        {data.map((row,i) => [
+          <KpiCard key={`ch${i}`} label="Chamados" value={fmt(row.chamados)} color="#5b7cf5" />,
+          <KpiCard key={`at${i}`} label="Atendidos" value={fmt(row.atendidos)} sub={fmtPct(row.percAtendidos)} color="#22c55e" />,
+          <KpiCard key={`sl${i}`} label="SLA" value={fmtPct(row.percSLA)} color={row.percSLA>=0.8?"#22c55e":row.percSLA>=0.7?"#f97316":"#ef4444"} />,
+          <KpiCard key={`ns${i}`} label="No SLA" value={fmt(row.noSLA)} color="#8b5cf6" />,
+        ])}
+      </div>
+      <ChamadosTable data={data} />
+    </div>
+  );
+}
+
+function ChamadosTable({ data }) {
+  return (
+    <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
+      <thead>
+        <tr style={{ borderBottom:"2px solid var(--card-border)" }}>
+          {["Mês","Chamados","Atendidos","% Atend.","No SLA","% SLA"].map(h => (
+            <th key={h} style={{ padding:"8px 10px",textAlign:"left",color:"var(--text-muted)",fontWeight:600,fontSize:11,textTransform:"uppercase",letterSpacing:"0.05em" }}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((row,i) => (
+          <tr key={i} style={{ borderBottom:"1px solid var(--card-border)" }}>
+            <td style={{ padding:"9px 10px",fontWeight:600,color:"var(--text-primary)" }}>{MES_FULL[row.mes]||row.mes}</td>
+            <td style={{ padding:"9px 10px",color:"var(--text-primary)" }}>{fmt(row.chamados)}</td>
+            <td style={{ padding:"9px 10px",color:"var(--text-primary)" }}>{fmt(row.atendidos)}</td>
+            <td style={{ padding:"9px 10px",color:"var(--text-primary)" }}>{fmtPct(row.percAtendidos)}</td>
+            <td style={{ padding:"9px 10px",color:"var(--text-primary)" }}>{fmt(row.noSLA)}</td>
+            <td style={{ padding:"9px 10px" }}>
+              <span style={{ background:row.percSLA>=0.8?"#dcfce7":row.percSLA>=0.7?"#fff7ed":"#fef2f2",color:row.percSLA>=0.8?"#15803d":row.percSLA>=0.7?"#c2410c":"#b91c1c",padding:"2px 8px",borderRadius:4,fontSize:12,fontWeight:600 }}>
+                {fmtPct(row.percSLA)}
+              </span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODELOS
+// ─────────────────────────────────────────────────────────────────────────────
+function TabModelos({ mesFiltro }) {
+  const meses = mesFiltro === "Todos" ? Object.keys(mockData.modelos) : [mesFiltro];
+  const colors = ["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
+
+  if (mesFiltro === "Todos") {
+    const modelTotals = {};
+    meses.forEach(m => {
+      mockData.modelos[m]?.forEach(r => {
+        modelTotals[r.modelo] = (modelTotals[r.modelo] || 0) + r.qtd;
+      });
+    });
+    const maxTotal = Math.max(...Object.values(modelTotals));
+    const allModelos = ["S9","S8","I2","S10","BR8"];
+
+    return (
+      <div>
+        <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24 }}>
+          <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16 }}>TOTAL DE CHAMADOS POR MODELO (ACUMULADO JAN–MAI)</p>
+          {allModelos.map((modelo,i) => (
+            <HBar key={modelo} label={modelo} value={modelTotals[modelo]||0} max={maxTotal} color={colors[i]} valueLabel={String(modelTotals[modelo]||0)} height={22} />
+          ))}
+        </div>
+        {meses.map(m => {
+          const rows = mockData.modelos[m] || [];
+          const maxQ = Math.max(...rows.map(r => r.qtd));
+          return (
+            <div key={m} style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"18px 22px",marginBottom:16 }}>
+              <p style={{ fontWeight:700,fontSize:13,color:"var(--text-primary)",marginBottom:12 }}>{MES_FULL[m]} — Top 5 Modelos</p>
+              {rows.map((r,i) => <HBar key={i} label={r.modelo} value={r.qtd} max={maxQ} color={colors[i]} valueLabel={`${r.qtd} (${r.perc}%)`} height={18} />)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const rows = mockData.modelos[mesFiltro] || [];
+  const maxQ = Math.max(...rows.map(r => r.qtd));
+  return (
+    <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px" }}>
+      <p style={{ fontWeight:700,fontSize:14,color:"var(--text-primary)",marginBottom:16 }}>{MES_FULL[mesFiltro]} — Top 5 Modelos</p>
+      {rows.map((r,i) => <HBar key={i} label={r.modelo} value={r.qtd} max={maxQ} color={colors[i]} valueLabel={`${r.qtd} (${r.perc}%)`} height={22} />)}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SINTOMAS  ← CORRIGIDO: label dinâmico para evitar sobreposição
+// ─────────────────────────────────────────────────────────────────────────────
+function TabSintomas({ mesFiltro }) {
+  const meses = mesFiltro === "Todos" ? Object.keys(mockData.sintomas) : [mesFiltro];
+  const colors = ["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
+
+  if (mesFiltro === "Todos") {
+    // Aggregate
+    const sintomaMap = {};
+    meses.forEach(m => {
+      mockData.sintomas[m]?.forEach(s => {
+        sintomaMap[s.sintoma] = (sintomaMap[s.sintoma] || 0) + s.qtd;
+      });
+    });
+    const sorted = Object.entries(sintomaMap).sort((a,b) => b[1]-a[1]).slice(0,8);
+    const accumRows = sorted.map(([sintoma,qtd],i) => ({
+      label: sintoma,
+      value: qtd,
+      valueLabel: String(qtd),
+      color: colors[i % colors.length],
+    }));
+    // Per-month sets
+    const monthSets = meses.map(m => ({
+      mes: m,
+      rows: (mockData.sintomas[m] || []).map((s,i) => ({
+        label: s.sintoma,
+        value: s.qtd,
+        valueLabel: `${s.qtd} (${s.perc}%)`,
+        color: colors[i],
+      })),
+    }));
+
+    return (
+      <div>
+        {/* Accumulated chart — uses SintomaHBarSet for auto label-width */}
+        <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24 }}>
+          <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16 }}>SINTOMAS MAIS FREQUENTES (ACUMULADO JAN–MAI)</p>
+          {/* Render each bar with its own color from accumRows */}
+          {(() => {
+            const maxVal = Math.max(...accumRows.map(r => r.value));
+            const maxLen = Math.max(...accumRows.map(r => r.label.length));
+            const labelWidth = Math.min(Math.max(maxLen * 7, 40), 200);
+            return accumRows.map((r,i) => (
+              <HBar key={i} label={r.label} value={r.value} max={maxVal} color={r.color} valueLabel={r.valueLabel} height={20} labelWidth={labelWidth} />
+            ));
+          })()}
+        </div>
+
+        {/* Per-month blocks */}
+        {monthSets.map(({ mes, rows }) => {
+          const maxVal = Math.max(...rows.map(r => r.value));
+          const maxLen = Math.max(...rows.map(r => r.label.length));
+          const labelWidth = Math.min(Math.max(maxLen * 7, 40), 200);
+          return (
+            <div key={mes} style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"18px 22px",marginBottom:16 }}>
+              <p style={{ fontWeight:700,fontSize:13,color:"var(--text-primary)",marginBottom:12 }}>{MES_FULL[mes]} — Top 5 Sintomas</p>
+              {rows.map((r,i) => (
+                <HBar key={i} label={r.label} value={r.value} max={maxVal} color={r.color} valueLabel={r.valueLabel} height={18} labelWidth={labelWidth} />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Single month
+  const rows = mockData.sintomas[mesFiltro] || [];
+  const maxQ = Math.max(...rows.map(r => r.qtd));
+  const maxLen = Math.max(...rows.map(r => r.sintoma.length));
+  const labelWidth = Math.min(Math.max(maxLen * 7, 40), 200);
+  return (
+    <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px" }}>
+      <p style={{ fontWeight:700,fontSize:14,color:"var(--text-primary)",marginBottom:16 }}>{MES_FULL[mesFiltro]} — Top 5 Sintomas</p>
+      {rows.map((s,i) => (
+        <HBar key={i} label={s.sintoma} value={s.qtd} max={maxQ} color={colors[i]} valueLabel={`${s.qtd} (${s.perc}%)`} height={22} labelWidth={labelWidth} />
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DESLIGAMENTOS  ← CORRIGIDO
+// ─────────────────────────────────────────────────────────────────────────────
+function TabDesligamentos({ mesFiltro }) {
+  const allData = mockData.desligamentos;
+  const data = mesFiltro === "Todos" ? allData : allData.filter(d => d.mes === mesFiltro);
+  const maxD = Math.max(...allData.map(d => d.desligamentos));
+  // % dos chamados = desligamentos / chamados do mesmo mês
+  const percDosChamados = (d) => {
+    const c = mockData.chamados.find(c => c.mes === d.mes);
+    return c ? d.desligamentos / c.chamados : 0;
+  };
+  const maxPercChamados = Math.max(...allData.map(d => percDosChamados(d) * 100));
+
+  if (mesFiltro === "Todos") {
+    return (
+      <div>
+        <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24 }}>
+          <div style={{ borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20 }}>
+            <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12 }}>DESLIGAMENTOS POR MÊS</p>
+            {data.map(d => <HBar key={d.mes} label={d.mes} value={d.desligamentos} max={maxD} color="#ef4444" valueLabel={String(d.desligamentos)} height={20} />)}
+          </div>
+          {/* ← CORRIGIDO: % dos chamados em vez de % da frota */}
+          <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12 }}>% DOS CHAMADOS</p>
+          {data.map(d => {
+            const pct = percDosChamados(d);
+            return <HBar key={d.mes} label={d.mes} value={pct*100} max={maxPercChamados} color="#f97316" valueLabel={fmtPct(pct)} height={20} />;
+          })}
+        </div>
+        <div style={{ display:"flex",gap:12,flexWrap:"wrap" }}>
+          {data.map((d,i) => (
+            <KpiCard key={i} label={MES_FULL[d.mes]||d.mes} value={fmt(d.desligamentos)} sub={`${fmtPct(percDosChamados(d))} dos chamados`} color="#ef4444" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ← CORRIGIDO: Mês individual agora exibe KPIs + histórico de todos os meses
+  return (
+    <div>
+      {/* KPI do mês selecionado */}
+      <div style={{ display:"flex",gap:12,flexWrap:"wrap",marginBottom:28 }}>
+        {data.map((d,i) => {
+          const pct = percDosChamados(d);
+          return (
+            <KpiCard key={i} label={MES_FULL[d.mes]||d.mes} value={fmt(d.desligamentos)} sub={`${fmtPct(pct)} dos chamados`} color="#ef4444" />
+          );
+        })}
+      </div>
+
+      {/* Histórico de todos os meses */}
+      <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px" }}>
+        <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16 }}>HISTÓRICO — DESLIGAMENTOS (JAN–MAI)</p>
+        <div style={{ borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20 }}>
+          <p style={{ fontSize:11,color:"var(--text-muted)",marginBottom:12,fontWeight:500 }}>Quantidade de desligamentos</p>
+          {allData.map(d => (
+            <HBar key={d.mes} label={d.mes} value={d.desligamentos} max={maxD} color={d.mes === mesFiltro ? "#ef4444" : "#f97316"} valueLabel={String(d.desligamentos)} height={20} />
+          ))}
+        </div>
+        <div>
+          <p style={{ fontSize:11,color:"var(--text-muted)",marginBottom:12,fontWeight:500 }}>% dos chamados</p>
+          {allData.map(d => {
+            const pct = percDosChamados(d);
+            return (
+              <HBar key={d.mes} label={d.mes} value={pct*100} max={maxPercChamados} color={d.mes === mesFiltro ? "#ef4444" : "#f97316"} valueLabel={fmtPct(pct)} height={20} />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TROCAS  ← CORRIGIDO: histórico em mês individual
+// ─────────────────────────────────────────────────────────────────────────────
+function TabTrocas({ mesFiltro }) {
+  const allData = mockData.substituicoes;
+  const data = mesFiltro === "Todos" ? allData : allData.filter(d => d.mes === mesFiltro);
+  const maxT = Math.max(...allData.map(s => s.trocas));
+  const maxPerc = Math.max(...allData.map(s => s.perc * 100));
+
+  if (mesFiltro === "Todos") {
+    return (
+      <div>
+        <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:24 }}>
+          <p style={{ fontWeight:700,fontSize:15,color:"var(--text-primary)",marginBottom:18 }}>Trocas de Equipamentos — Comparativo Mensal</p>
+          <div style={{ borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20 }}>
+            <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12 }}>DICICLOS SUBSTITUÍDOS</p>
+            {data.map(d => <HBar key={d.mes} label={d.mes} value={d.trocas} max={maxT} color="#22c55e" valueLabel={String(d.trocas)} height={20} />)}
+          </div>
+          <div>
+            <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12 }}>% SOBRE TOTAL DE CHAMADOS</p>
+            {data.map(d => <HBar key={d.mes} label={d.mes} value={d.perc*100} max={25} color="#8b5cf6" valueLabel={`${Math.round(d.perc*100)}%`} height={20} />)}
+          </div>
+        </div>
+        <div style={{ display:"flex",gap:12,flexWrap:"wrap" }}>
+          {data.map((d,i) => <KpiCard key={i} label={MES_FULL[d.mes]||d.mes} value={fmt(d.trocas)} sub={fmtPct(d.perc)+" dos chamados"} color="#8b5cf6" />)}
+        </div>
+      </div>
+    );
+  }
+
+  // ← CORRIGIDO: Mês individual com KPI + histórico de todos os meses
+  return (
+    <div>
+      {/* KPI do mês selecionado */}
+      <div style={{ display:"flex",gap:12,flexWrap:"wrap",marginBottom:28 }}>
+        {data.map((d,i) => (
+          <KpiCard key={i} label={MES_FULL[d.mes]||d.mes} value={fmt(d.trocas)} sub={fmtPct(d.perc)+" dos chamados"} color="#8b5cf6" />
+        ))}
+      </div>
+
+      {/* Histórico de todos os meses */}
+      <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px" }}>
+        <p style={{ fontSize:11,fontWeight:700,color:"var(--text-muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16 }}>HISTÓRICO — TROCAS DE EQUIPAMENTOS (JAN–MAI)</p>
+        <div style={{ borderBottom:"1px solid var(--card-border)",paddingBottom:20,marginBottom:20 }}>
+          <p style={{ fontSize:11,color:"var(--text-muted)",marginBottom:12,fontWeight:500 }}>Diciclos substituídos</p>
+          {allData.map(d => (
+            <HBar key={d.mes} label={d.mes} value={d.trocas} max={maxT} color={d.mes === mesFiltro ? "#22c55e" : "#8b5cf6"} valueLabel={String(d.trocas)} height={20} />
+          ))}
+        </div>
+        <div>
+          <p style={{ fontSize:11,color:"var(--text-muted)",marginBottom:12,fontWeight:500 }}>% dos chamados</p>
+          {allData.map(d => (
+            <HBar key={d.mes} label={d.mes} value={d.perc*100} max={maxPerc} color={d.mes === mesFiltro ? "#22c55e" : "#8b5cf6"} valueLabel={`${Math.round(d.perc*100)}%`} height={20} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOS
+// ─────────────────────────────────────────────────────────────────────────────
+function CostBlock({ title, icon, color, dataKey, data, justificativa }) {
+  const values = data.map(d => d[dataKey]);
+  const maxVal = Math.max(...values);
+  const total = values.reduce((a,b) => a+b, 0);
+
+  return (
+    <div style={{ background:"var(--card-bg)",border:"1px solid var(--card-border)",borderRadius:14,padding:"20px 24px",marginBottom:20 }}>
+      <p style={{ fontSize:12,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.07em",margin:"0 0 16px",display:"flex",alignItems:"center",gap:8 }}>
+        <span style={{ fontSize:16 }}>{icon}</span>{title}
+      </p>
+      <p style={{ fontSize:11,color:"var(--text-muted)",marginBottom:10 }}>Valores por mês</p>
+      {data.map((d,i) => (
+        <HBar key={d.mes} label={d.mes} value={d[dataKey]} max={maxVal} color={color} valueLabel={fmtR(d[dataKey])} height={20} />
+      ))}
+      <p style={{ fontSize:12,color:"var(--text-muted)",margin:"14px 0 2px" }}>Total acumulado</p>
+      <p style={{ fontSize:16,fontWeight:700,color,margin:"0 0 14px" }}>{fmtR(total)}</p>
+      {justificativa && (
+        <div style={{ borderLeft:`3px solid ${color}`,paddingLeft:12,marginTop:4 }}>
+          <p style={{ fontSize:12,color:"var(--text-muted)",margin:0,lineHeight:1.6 }}>{justificativa}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabCustos({ mesFiltro }) {
+  const data = mesFiltro === "Todos" ? mockData.custos : mockData.custos.filter(c => c.mes === mesFiltro);
+
+  if (mesFiltro === "Todos") {
+    return (
+      <div>
+        <CostBlock title="Descontos" icon="🏷️" color="#ef4444" dataKey="desconto" data={data}
+          justificativa="Em março houve descontos aplicados devido a ausência de veículos e insumos para atendimento rápido, causada por atraso na importação. Em Abril e Maio, os descontos aumentaram em razão do caso Multiplan/Barra Shopping." />
+        <CostBlock title="Gastos Transportadora" icon="🚚" color="#f59e0b" dataKey="transportadora" data={data}
+          justificativa="Em Janeiro, o custo de transportadoras subiu devido aos atrasos de final de ano na logística e período de recesso de alguns ATs. Em Abril, refletiu manobras de postergação de boletos de Fev/Mar, custos da missão Multiplan e envios do Barra Shopping. Em Maio, o aumento decorreu do maior volume de trocas de veículos e de cancelamentos/retiradas." />
+        <CostBlock title="Gastos com AT" icon="🔧" color="#8b5cf6" dataKey="ats" data={data} />
+
+        <div style={{ marginTop:8 }}>
+          <SectionTitle>Comparativo Detalhado por Mês</SectionTitle>
+          <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+            <thead>
+              <tr style={{ borderBottom:"2px solid var(--card-border)" }}>
+                {["Mês","Faturamento","Descontos","Transportadora","ATS","Total Custos"].map(h => (
+                  <th key={h} style={{ padding:"8px 10px",textAlign:"left",color:"var(--text-muted)",fontWeight:600,fontSize:11,textTransform:"uppercase" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row,i) => (
+                <tr key={i} style={{ borderBottom:"1px solid var(--card-border)" }}>
+                  <td style={{ padding:"9px 10px",fontWeight:600,color:"var(--text-primary)" }}>{MES_FULL[row.mes]||row.mes}</td>
+                  <td style={{ padding:"9px 10px",color:"var(--text-primary)" }}>{fmtR(row.faturamento)}</td>
+                  <td style={{ padding:"9px 10px",color:"#ef4444" }}>{fmtR(row.desconto)}</td>
+                  <td style={{ padding:"9px 10px",color:"#f59e0b" }}>{fmtR(row.transportadora)}</td>
+                  <td style={{ padding:"9px 10px",color:"#8b5cf6" }}>{fmtR(row.ats)}</td>
+                  <td style={{ padding:"9px 10px",fontWeight:600,color:"var(--text-primary)" }}>{fmtR(row.desconto+row.transportadora+row.ats)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  const totDesc = data.reduce((a,b)=>a+b.desconto,0);
+  const totTrans = data.reduce((a,b)=>a+b.transportadora,0);
+  const totAts = data.reduce((a,b)=>a+b.ats,0);
+  const totFat = data[0]?.faturamento || 0;
+  return (
+    <div>
+      <div style={{ display:"flex",gap:12,flexWrap:"wrap",marginBottom:24 }}>
+        <KpiCard label="Faturamento" value={fmtR(totFat)} color="#22c55e" />
+        <KpiCard label="Descontos" value={fmtR(totDesc)} color="#ef4444" />
+        <KpiCard label="Transportadora" value={fmtR(totTrans)} color="#f59e0b" />
+        <KpiCard label="ATS" value={fmtR(totAts)} color="#8b5cf6" />
+      </div>
+      <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+        <thead>
+          <tr style={{ borderBottom:"2px solid var(--card-border)" }}>
+            {["Mês","Faturamento","Descontos","Transportadora","ATS","Total Custos"].map(h => (
+              <th key={h} style={{ padding:"8px 10px",textAlign:"left",color:"var(--text-muted)",fontWeight:600,fontSize:11,textTransform:"uppercase" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row,i) => (
+            <tr key={i} style={{ borderBottom:"1px solid var(--card-border)" }}>
+              <td style={{ padding:"9px 10px",fontWeight:600,color:"var(--text-primary)" }}>{MES_FULL[row.mes]||row.mes}</td>
+              <td style={{ padding:"9px 10px",color:"var(--text-primary)" }}>{fmtR(row.faturamento)}</td>
+              <td style={{ padding:"9px 10px",color:"#ef4444" }}>{fmtR(row.desconto)}</td>
+              <td style={{ padding:"9px 10px",color:"#f59e0b" }}>{fmtR(row.transportadora)}</td>
+              <td style={{ padding:"9px 10px",color:"#8b5cf6" }}>{fmtR(row.ats)}</td>
+              <td style={{ padding:"9px 10px",fontWeight:600,color:"var(--text-primary)" }}>{fmtR(row.desconto+row.transportadora+row.ats)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PONTOS DE ATENÇÃO  ← CORRIGIDO: removido "Faturamento Estável"
+// ─────────────────────────────────────────────────────────────────────────────
+function TabAtencao() {
+  const riscos = [
+    { nivel:"alto",cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
+      { ref:"SLA em Abril — 56%",impacto:"Quebra de contrato, insatisfação de clientes estratégicos (Multiplan/Barra Shopping). Penalidades financeiras e risco de não renovação.",solucao:"Implementar célula de atendimento dedicada para contas estratégicas; revisar protocolo de escalonamento com resposta em 2h para chamados críticos." },
+      { ref:"Custo de Transportadora — Janeiro (R$27.416) e Abril (R$19.294)",impacto:"Erosão de margem operacional em meses já pressionados por descontos e volume de chamados acima da média.",solucao:"Negociar contratos de tabela fixa mensal com transportadoras parceiras; avaliar modal próprio para regiões de alta concentração." },
+      { ref:"Desligamentos — Abril e Maio (18 cada)",impacto:"Perda de receita recorrente e possível migração de base para concorrentes.",solucao:"Auditoria de motivo por desligamento; criação de programa de retenção proativo para contratos com mais de 12 meses de campo." },
+    ]},
+    { nivel:"medio",cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
+      { ref:"Pneus como sintoma #1 em todos os meses",impacto:"Alto volume de chamados previsíveis e evitáveis que consomem capacidade operacional.",solucao:"Programa de manutenção preventiva trimestral de pneus por contrato. Meta: redução de 30% em chamados no 2º semestre." },
+      { ref:"Alta de chamados em Março e Abril (183 e 213)",impacto:"Pressão sobre equipe de atendimento e risco de atrasos no SLA.",solucao:"Identificar sazonalidade e reforçar equipe preventivamente nos meses de pico (Mar–Abr)." },
+      { ref:"Taxa de troca crescente (16% → 20% em Maio)",impacto:"Aumento de custo logístico e possível indicação de deterioração de frota.",solucao:"Mapear equipamentos com maior taxa de troca; avaliar substituição de frota envelhecida." },
+    ]},
+    { nivel:"baixo",cor:"#16a34a",bg:"#f0fdf4",bord:"#bbf7d0",titulo:"🟢 Risco Baixo — Monitoramento Contínuo",itens:[
+      // ← REMOVIDO: "Faturamento estável" — não controlável operacionalmente
+      { ref:"Custo ATS equilibrado (~R$13K–R$18K/mês)",impacto:"Custo controlado, mas com leve tendência de alta em Maio.",solucao:"Acompanhar variação; identificar se alta em Maio é pontual ou tendência." },
+      { ref:"Descontos zerados em Fevereiro",impacto:"Indica operação sem intercorrências — modelo a ser replicado.",solucao:"Documentar práticas de Fevereiro e aplicar como benchmark operacional." },
+    ]},
+  ];
+
+  return (
+    <div>
+      <SectionTitle>Matriz de Risco Operacional</SectionTitle>
+      {riscos.map(({ nivel,cor,bg,bord,titulo,itens }) => (
+        <div key={nivel} style={{ marginBottom:24 }}>
+          <p style={{ fontWeight:700,fontSize:14,color:cor,marginBottom:12 }}>{titulo}</p>
+          {itens.map((item,i) => (
+            <div key={i} style={{ background:bg,border:`1px solid ${bord}`,borderRadius:10,padding:"14px 16px",marginBottom:10 }}>
+              <p style={{ fontWeight:700,fontSize:13,color:cor,margin:"0 0 6px",display:"flex",alignItems:"center",gap:6 }}>
+                <Info size={13} style={{ verticalAlign:-1 }} />{item.ref}
+              </p>
+              <p style={{ fontSize:12,margin:"0 0 6px",color:"#374151" }}><strong>Impacto:</strong> {item.impacto}</p>
+              <p style={{ fontSize:12,margin:0,color:"#374151" }}><strong>Plano de ação:</strong> {item.solucao}</p>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROOT
+// ═══════════════════════════════════════════════════════════════════════════════
+export default function Dashboard() {
+  const [abaAtiva, setAbaAtiva] = useState("visao");
+  const [mesFiltro, setMesFiltro] = useState("Todos");
+  const [dark, setDark] = useState(true);
+
+  const theme = dark ? {
+    "--bg":"#0f1117","--sidebar-bg":"#1a1d27","--card-bg":"#1e2130","--card-border":"#2e3250",
+    "--text-primary":"#f1f5f9","--text-muted":"#8890aa","--chart-grid":"#2e3250","--bar-bg":"#2e3250",
+    "--tt-bg":"#1e2130","--tt-border":"#2e3250","--tt-text":"#f1f5f9",
+    "--header-bg":"#1a1d27","--nav-hover":"#252a3a","--nav-active":"#252a3a","--filter-bg":"#1e2130",
+  } : {
+    "--bg":"#f8f9fc","--sidebar-bg":"#ffffff","--card-bg":"#ffffff","--card-border":"#e8eaf2",
+    "--text-primary":"#1a1d2e","--text-muted":"#6b7280","--chart-grid":"#f1f3f9","--bar-bg":"#f1f3f9",
+    "--tt-bg":"#ffffff","--tt-border":"#e8eaf2","--tt-text":"#1a1d2e",
+    "--header-bg":"#ffffff","--nav-hover":"#f0f2fc","--nav-active":"#eef0fc","--filter-bg":"#f0f2fc",
+  };
+
+  const currentAba = NAV.find(n => n.id === abaAtiva);
+
+  return (
+    <div style={{ display:"flex",height:"100vh",fontFamily:"Inter,-apple-system,sans-serif",...Object.fromEntries(Object.entries(theme)),background:"var(--bg)" }}>
+      <style>{`*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:3px}`}</style>
+
+      {/* SIDEBAR */}
+      <div style={{ width:240,background:"var(--sidebar-bg)",borderRight:"1px solid var(--card-border)",display:"flex",flexDirection:"column",flexShrink:0 }}>
+        <div style={{ padding:"20px 18px 16px",borderBottom:"1px solid var(--card-border)" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+            <div style={{ width:32,height:32,borderRadius:8,background:"#4f63f7",display:"flex",alignItems:"center",justifyContent:"center" }}>
+              <Zap size={16} color="#fff" />
+            </div>
+            <div>
+              <p style={{ fontSize:13,fontWeight:700,color:"var(--text-primary)",lineHeight:1.2 }}>BRMOBILITY</p>
+              <p style={{ fontSize:10,color:"var(--text-muted)" }}>OPERACIONAL</p>
+            </div>
+          </div>
+        </div>
+
+        <nav style={{ flex:1,padding:"10px",overflowY:"auto" }}>
+          {NAV.map(({ id,label,icon:Icon }) => (
+            <button key={id} onClick={() => setAbaAtiva(id)} style={{
+              width:"100%",display:"flex",alignItems:"center",gap:10,
+              padding:"9px 10px",borderRadius:8,border:"none",cursor:"pointer",
+              background:abaAtiva===id?"var(--nav-active)":"transparent",
+              color:abaAtiva===id?"#4f63f7":"var(--text-muted)",
+              fontSize:13,fontWeight:abaAtiva===id?600:400,
+              marginBottom:2,textAlign:"left"
+            }}>
+              <Icon size={16} />
+              <span style={{ flex:1,lineHeight:1.2 }}>{label}</span>
+              {abaAtiva===id && <ChevronRight size={12} />}
+            </button>
+          ))}
+        </nav>
+
+        <div style={{ padding:"14px 12px",borderTop:"1px solid var(--card-border)" }}>
+          <button onClick={() => setDark(!dark)} style={{
+            width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"9px 12px",borderRadius:8,border:"1px solid var(--card-border)",
+            background:"var(--filter-bg)",cursor:"pointer",color:"var(--text-primary)",fontSize:12
+          }}>
+            <span style={{ display:"flex",alignItems:"center",gap:8 }}>
+              {dark ? <Sun size={14}/> : <Moon size={14}/>}
+              {dark?"Light Mode":"Dark Mode"}
+            </span>
+            <div style={{ width:32,height:18,borderRadius:9,background:dark?"#4f63f7":"var(--card-border)",position:"relative" }}>
+              <div style={{ position:"absolute",top:3,left:dark?16:3,width:12,height:12,borderRadius:"50%",background:"#fff",transition:"left 0.2s" }} />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
+        <div style={{ background:"var(--header-bg)",borderBottom:"1px solid var(--card-border)",padding:"14px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
+          <div>
+            <p style={{ fontSize:16,fontWeight:700,color:"var(--text-primary)",lineHeight:1.2 }}>{currentAba?.label}</p>
+            <p style={{ fontSize:12,color:"var(--text-muted)" }}>
+              {mesFiltro==="Todos"?"Jan – Mai 2025 • Visão acumulada":`${MES_FULL[mesFiltro]} 2025`}
+            </p>
+          </div>
+          <div style={{ display:"flex",gap:6,alignItems:"center",flexWrap:"wrap" }}>
+            {MESES.map(m => (
+              <button key={m} onClick={() => setMesFiltro(m)} style={{
+                padding:"6px 14px",borderRadius:20,border:"1px solid",
+                borderColor:mesFiltro===m?"#4f63f7":"var(--card-border)",
+                background:mesFiltro===m?"#4f63f7":"var(--filter-bg)",
+                color:mesFiltro===m?"#fff":"var(--text-muted)",
+                fontSize:12,fontWeight:mesFiltro===m?600:400,cursor:"pointer"
+              }}>{m}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ flex:1,overflowY:"auto",padding:"24px 28px" }}>
+          {abaAtiva==="visao"        && <TabVisaoGeral mesFiltro={mesFiltro} />}
+          {abaAtiva==="chamados"     && <TabChamados mesFiltro={mesFiltro} />}
+          {abaAtiva==="modelos"      && <TabModelos mesFiltro={mesFiltro} />}
+          {abaAtiva==="sintomas"     && <TabSintomas mesFiltro={mesFiltro} />}
+          {abaAtiva==="desligamentos"&& <TabDesligamentos mesFiltro={mesFiltro} />}
+          {abaAtiva==="trocas"       && <TabTrocas mesFiltro={mesFiltro} />}
+          {abaAtiva==="custos"       && <TabCustos mesFiltro={mesFiltro} />}
+          {abaAtiva==="atencao"      && <TabAtencao />}
+        </div>
+      </div>
+    </div>
+  );
+}
