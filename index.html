@@ -193,7 +193,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// HELPERS (LÓGICA CORRIGIDA: APENAS MOSTRA MESES QUE POSSUEM DADOS REAIS)
+// HELPERS (LÓGICA CORRIGIDA: MOSTRA OS MESES ASSIM QUE SÃO REGISTRADOS)
 // ─────────────────────────────────────────────────────────────────────────
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
@@ -203,10 +203,10 @@ const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 function getMesesFiltro() {
   const setMeses = new Set();
   
-  mockData.chamados.forEach(c => { if(c.chamados > 0 || c.atendidos > 0) setMeses.add(c.mes); });
-  mockData.custos.forEach(c => { if((c.faturamento || c.desconto || c.transportadora || c.ats) || c.obsDesconto || c.obsTransportadora) setMeses.add(c.mes); });
-  mockData.desligamentos.forEach(d => { if(d.desligamentos > 0) setMeses.add(d.mes); });
-  mockData.substituicoes.forEach(s => { if(s.trocas > 0) setMeses.add(s.mes); });
+  mockData.chamados.forEach(c => { if(c.mes) setMeses.add(c.mes); });
+  mockData.custos.forEach(c => { if(c.mes) setMeses.add(c.mes); });
+  mockData.desligamentos.forEach(d => { if(d.mes) setMeses.add(d.mes); });
+  mockData.substituicoes.forEach(s => { if(s.mes) setMeses.add(s.mes); });
   
   Object.keys(mockData.modelos).forEach(m => { if(mockData.modelos[m] && mockData.modelos[m].length > 0) setMeses.add(m); });
   Object.keys(mockData.sintomas).forEach(m => { if(mockData.sintomas[m] && mockData.sintomas[m].length > 0) setMeses.add(m); });
@@ -283,7 +283,7 @@ function isEditor() {
 // Qualquer email @brmobility.com.br, a própria Vanessa, OU usuário anônimo tem permissão de leitura
 function isViewer() {
   if (!currentUser) return false;
-  if (currentUser.isAnonymous) return true; // Convidado Anônimo pode ver!
+  if (currentUser.isAnonymous) return true;
   if (!currentUser.email) return false;
   const email = currentUser.email.toLowerCase();
   return email === ALLOWED_EMAIL || email.endsWith("@brmobility.com.br");
@@ -394,7 +394,6 @@ function renderLoginForm(errorMsg) {
 
   document.getElementById('backBtn').addEventListener('click', renderLoginGate);
   
-  // Ação do novo botão para visualizadores rápidos
   document.getElementById('anonLoginBtn').addEventListener('click', async () => {
     const errEl = document.getElementById('loginError');
     if (!auth) {
@@ -865,7 +864,7 @@ function tabVisaoGeral(mesFiltro) {
       ${[
         { titulo:"Acompanhamento Preventivo de SLA", texto:"Flutuações de SLA representam riscos estruturais. Recomenda-se revisão do protocolo de escalonamento para chamados de grande volume." },
         { titulo:"Escalada e Prevenção de Desligamentos", texto:"O crescimento de desligamentos sugere monitoramento rigoroso da frota ou processos operacionais pendentes." },
-        { titulo:"Gestão Preventiva de Insumos de Campo", texto:"Sintomas mecânicos recorrentes apontam para a necessidade de um programa preventivo e acompanhamento cíclico das rotas." },
+        { titulo:"Gestão Preventiva de Insumos de Campo", texto:"Sintomas mecânicos recorrentes apontam para a necessidade de um programa preventivo and acompanhamento cíclico das rotas." },
       ].map(({titulo,texto}) => `<div class="diag-item"><p class="diag-title">${esc(titulo)}</p><p class="diag-text">${esc(texto)}</p></div>`).join("")}
     </div>`;
     return html;
@@ -992,7 +991,11 @@ function tabSintomas(mesFiltro) {
 
   if (mesFiltro === "Todos") {
     const sintomaMap = {};
-    meses.forEach(m => mockData.sintomas[m]?.forEach(s => { sintomaMap[s.sintoma]=(sintomaMap[s.sintoma]||0)+s.qtd; }));
+    meses.forEach(m => {
+      if (mockData.sintomas[m]) {
+        mockData.sintomas[m].forEach(s => { sintomaMap[s.sintoma]=(sintomaMap[s.sintoma]||0)+s.qtd; });
+      }
+    });
     const sorted = Object.entries(sintomaMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
     const accumRows = sorted.map(([sintoma,qtd],i) => ({ label:sintoma, value:qtd, valueLabel:String(qtd), color:colors[i%colors.length] }));
     const maxVal = Math.max(...accumRows.map(r=>r.value), 1);
