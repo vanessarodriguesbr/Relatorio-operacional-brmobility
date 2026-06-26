@@ -193,7 +193,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// HELPERS (LÓGICA DOS FILTROS CORRIGIDA: APENAS EXIBE SE HOUVER DADO PREENCHIDO MAIOR QUE ZERO)
+// HELPERS (LÓGICA DOS FILTROS CORRIGIDA E REATIVA)
 // ─────────────────────────────────────────────────────────────────────────
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
@@ -220,9 +220,7 @@ function getMesesFiltro() {
 }
 
 function normalizarBancoDeDados() {
-  const mesesComDados = ALL_MESES_ORDER;
-  
-  mesesComDados.forEach(m => {
+  ALL_MESES_ORDER.forEach(m => {
     if (!mockData.chamados.some(c => c.mes === m)) mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
     if (!mockData.custos.some(c => c.mes === m)) mockData.custos.push({ mes: m, chamados: 0, faturamento: 0, desconto: 0, transportadora: 0, ats: 0, obsDesconto:"", obsTransportadora:"", obsAts:"" });
     if (!mockData.desligamentos.some(d => d.mes === m)) mockData.desligamentos.push({ mes: m, desligamentos: 0, perc: 0 });
@@ -253,7 +251,7 @@ function monthSelectHtml(id) {
 let state = { aba: "visao", mes: "Todos", dark: true };
 
 // ─────────────────────────────────────────────────────────────────────────
-// FIREBASE
+// FIREBASE (CORRIGIDO: GRAVAÇÃO E SNAPHOT EM SINTONIA TOTAL)
 // ─────────────────────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyDqsMVRTIyLx_r1KiMMaT_hxYZTmVA6yNw",
@@ -267,6 +265,7 @@ const firebaseConfig = {
 let db = null;
 let auth = null;
 const ALLOWED_EMAIL = "vanessa@brmobility.com";
+let isSavingFlag = false; // Evita loop de substituição quando salvamos
 
 try {
   firebase.initializeApp(firebaseConfig);
@@ -294,7 +293,10 @@ let unsubscribeSnapshot = null;
 function startRealtimeSync() {
   if (!db) { normalizarBancoDeDados(); render(); return; }
   if (unsubscribeSnapshot) unsubscribeSnapshot();
+  
   unsubscribeSnapshot = db.collection("dashboard").doc("data").onSnapshot(doc => {
+    if (isSavingFlag) return; // Se está salvando dados locais, ignora o snapshot imediato para não sobrescrever com dados antigos do servidor
+    
     if (doc.exists) {
       const remote = doc.data();
       mockData.chamados = remote.chamados || mockData.chamados;
@@ -316,12 +318,20 @@ function startRealtimeSync() {
 }
 
 function persist() {
-  if (!db) return;
-  if (!isEditor()) return;
-  db.collection("dashboard").doc("data").set(mockData).catch(e => console.error(e));
+  if (!db || !isEditor()) return;
+  isSavingFlag = true;
+  db.collection("dashboard").doc("data").set(mockData)
+    .then(() => {
+      setTimeout(() => { isSavingFlag = false; }, 1000); // Libera o snapshot após gravação estável
+    })
+    .catch(e => {
+      console.error(e);
+      isSavingFlag = false;
+    });
 }
 
 function commitAndSave() {
+  // Tempo real imediato: normaliza o estado na memória local e reconstrói o HTML
   normalizarBancoDeDados();
   render();
   persist();
@@ -628,7 +638,6 @@ function wireFormDesligamentos() {
   });
 }
 
-// Correção sutil no carregamento das observações e no push dos custos
 function formTrocas() {
   return `<div class="card form-card">
     <p class="block-label">➕ ADICIONAR / ATUALIZAR MÊS — TROCAS DE EQUIPAMENTOS</p>
