@@ -1,4 +1,3 @@
-HTML
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -281,9 +280,11 @@ function isEditor() {
   return currentUser && currentUser.email && currentUser.email.toLowerCase() === ALLOWED_EMAIL;
 }
 
-// Qualquer email @brmobility.com.br (ou a própria Vanessa) tem permissão de leitura
+// Qualquer email @brmobility.com.br, a própria Vanessa, OU usuário anônimo tem permissão de leitura
 function isViewer() {
-  if (!currentUser || !currentUser.email) return false;
+  if (!currentUser) return false;
+  if (currentUser.isAnonymous) return true; // Convidado Anônimo pode ver!
+  if (!currentUser.email) return false;
   const email = currentUser.email.toLowerCase();
   return email === ALLOWED_EMAIL || email.endsWith("@brmobility.com.br");
 }
@@ -379,12 +380,36 @@ function renderLoginForm(errorMsg) {
           <button type="submit" class="login-enter-btn" id="loginBtn" style="width:100%">Entrar</button>
           <p class="login-error" id="loginError" style="text-align:center">${errorMsg ? esc(errorMsg) : ""}</p>
         </form>
-        <p class="login-back" id="backBtn" style="display:block;text-align:center">← Voltar</p>
+        
+        <div style="border-top:1px solid #e1eaea; margin-top:20px; padding-top:18px; text-align:center;">
+          <button type="button" id="anonLoginBtn" class="login-enter-btn" style="background:transparent; color:#0c3b3e; border:1px solid #0c3b3e; width:100%; font-size:13px; padding:10px 16px;">
+            👓 Acessar como Visualizador (Sem Senha)
+          </button>
+        </div>
+
+        <p class="login-back" id="backBtn" style="display:block;text-align:center;margin-top:16px;">← Voltar</p>
       </div>
     </div>
   </div>`;
 
   document.getElementById('backBtn').addEventListener('click', renderLoginGate);
+  
+  // Ação do novo botão para visualizadores rápidos
+  document.getElementById('anonLoginBtn').addEventListener('click', async () => {
+    const errEl = document.getElementById('loginError');
+    if (!auth) {
+      errEl.textContent = "Firebase Authentication não configurado.";
+      return;
+    }
+    try {
+      errEl.textContent = "";
+      await auth.signInAnonymously();
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Erro ao acessar de modo anônimo.";
+    }
+  });
+
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('loginEmail').value.trim();
@@ -416,7 +441,6 @@ function setupAuthGate() {
   auth.onAuthStateChanged(user => {
     if (user) {
       currentUser = user;
-      // Validação do domínio corporativo ou admin fixo
       if (isViewer()) {
         startRealtimeSync();
       } else {
@@ -1194,7 +1218,7 @@ function tabAtencao() {
     { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
       { ref:`SLA Operacional em ${MES_FULL[last.mes] || last.mes} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
       { ref:`Custo de Transportadora em ${MES_FULL[last.mes] || last.mes} — ${fmtR(cost.transportadora)}`,impacto:"Pressão sobre a margem operacional direta decorrente de fretes urgentes ou reenvios logísticos.",solucao:"Negociar contratos de tabela fixa com transportadoras de rota frequente." },
-      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução receita reuniões recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
+      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução receita reuniões recurrent e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
     ]},
     { cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
       { ref:`Sintoma Recorrente em ${MES_FULL[last.mes] || last.mes} (${esc(mockData.sintomas[last.mes]?.[0]?.sintoma || "Pneus")})`,impacto:"Alto volume de chamados previsíveis ocupando capacidade da assistência interna.",solucao:"Reforçar inspeção preventiva cíclica para mitigar reincidências mecânicas." },
@@ -1220,6 +1244,12 @@ function tabAtencao() {
 // RENDER PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────
 function renderSidebar() {
+  const profileLabel = currentUser?.isAnonymous 
+    ? '<br><span style="color:#f59e0b">Somente visualização (Convidado)</span>'
+    : (isEditor() ? '<br><span style="color:#22c55e">✓ Permissão de edição</span>' : '<br><span style="color:#f97316">Somente visualização</span>');
+
+  const emailDisplay = currentUser?.isAnonymous ? "Convidado Geral" : esc(currentUser?.email || "");
+
   return `<div class="sidebar">
     <div class="sidebar-header">
       <div class="logo-box">⚡</div>
@@ -1237,7 +1267,7 @@ function renderSidebar() {
           <div class="toggle-dot" style="left:${state.dark?'16px':'3px'}"></div>
         </div>
       </button>
-      ${currentUser ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding:0 2px">Logado como<br><strong style="color:var(--text-primary)">${esc(currentUser.email)}</strong>${isEditor()?'<br><span style="color:#22c55e">✓ Permissão de edição</span>':'<br><span style="color:#f97316">Somente visualização</span>'}</div>
+      ${currentUser ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding:0 2px">Logado como<br><strong style="color:var(--text-primary)">${emailDisplay}</strong>${profileLabel}</div>
       <button class="logout-btn" onclick="logout()">🚪 Sair</button>` : ""}
     </div>
   </div>`;
