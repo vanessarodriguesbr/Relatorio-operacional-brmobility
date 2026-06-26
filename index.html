@@ -330,7 +330,6 @@ function persist() {
     });
 }
 
-// CORREÇÃO CRÍTICA AQUI: O persist deve ser disparado imediatamente antes da normalização local apagar os dados digitados
 function commitAndSave() {
   persist();
   normalizarBancoDeDados();
@@ -842,7 +841,8 @@ function tabVisaoGeral(mesFiltro) {
       </div>
       <div>
         <p class="block-label">SLA CUMPRIDO (%)</p>
-        ${chamados.map(c => hbar({ label:c.mes, value:(c.percSLA || 0)*100, max:100, color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444", valueLabel:`${Math.round((c.percSLA||0)*100)}%`, height:20, labelWidth:28 })).join("")}
+        ${chamados.map(c => hbar({ label:c.mes, value:(c.percSLA || 0)*100, max:100, color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444", 
+valueLabel:`${Math.round((c.percSLA||0)*100)}%`, height:20, labelWidth:28 })).join("")}
       </div>
     </div>
 
@@ -1014,7 +1014,6 @@ function tabSintomas(mesFiltro) {
       <p class="block-label" style="margin-bottom:16px">SINTOMAS MAIS FREQUENTES (ACUMULADO)</p>
       ${accumRows.length ? accumRows.map(r => hbar({label:r.label,value:r.value,max:maxVal,color:r.color,valueLabel:r.valueLabel,height:20,labelWidth:lw})).join("") : "<p style='font-size:12px;color:var(--text-muted);'>Nenhum sintoma acumulado.</p>"}
     </div>`;
-
     meses.forEach(m => {
       const rows = (mockData.sintomas[m]||[]).map((s,i) => ({ label:s.sintoma, value:s.qtd, valueLabel:`${s.qtd} (${s.perc}%)`, color:colors[i] }));
       if(rows.length) {
@@ -1049,7 +1048,6 @@ function tabDesligamentos(mesFiltro) {
   const percDosChamados = d => { const c = mockData.chamados.find(c=>c.mes===d.mes); return c && c.chamados>0 ? d.desligamentos/c.chamados : 0; };
   const maxPercChamados = Math.max(...mockData.desligamentos.map(d=>percDosChamados(d)*100), 1);
   const formHtml = isEditor() ? formDesligamentos() : "";
-
   if (mesFiltro === "Todos") {
     return formHtml + `<div class="card">
       <div class="block-divider"><p class="block-label">DESLIGAMENTOS POR MÊS</p>${data.map(d=>hbar({label:d.mes,value:d.desligamentos,max:maxD,color:"#ef4444",valueLabel:String(d.desligamentos),height:20,labelWidth:28})).join("")}</div>
@@ -1088,7 +1086,6 @@ function tabTrocas(mesFiltro) {
   const maxT = Math.max(...mockData.substituicoes.map(s=>s.trocas), 1);
   const maxPerc = Math.max(...mockData.substituicoes.map(s=>s.perc*100), 1);
   const formHtml = isEditor() ? formTrocas() : "";
-
   if (mesFiltro === "Todos") {
     return formHtml + `<div class="card">
       <p style="font-weight:700;font-size:15px;color:var(--text-primary);margin-bottom:18px">Trocas de Equipamentos — Comparativo Mensal</p>
@@ -1144,7 +1141,6 @@ function costBlock({ title, icon, color, dataKey, data, obsKey }) {
     }
     return "";
   }).join("");
-
   return `<div class="card">
     <p style="font-size:12px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.07em;margin:0 0 16px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">${icon}</span>${esc(title)}</p>
     <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Valores por mês</p>
@@ -1158,7 +1154,6 @@ function tabCustos(mesFiltro) {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
   const data = mesFiltro==="Todos" ? mockData.custos.filter(c=>mesesValidos.includes(c.mes)) : mockData.custos.filter(c=>c.mes===mesFiltro);
   const formHtml = isEditor() ? formCustos() : "";
-
   if (mesFiltro === "Todos") {
     return formHtml
     + costBlock({ title:"Descontos", icon:"🏷️", color:"#ef4444", dataKey:"desconto", data, obsKey:"obsDesconto" })
@@ -1171,14 +1166,12 @@ function tabCustos(mesFiltro) {
   const totTrans = data.reduce((a,b)=>a+(b.transportadora||0),0);
   const totAts = data.reduce((a,b)=>a+(b.ats||0),0);
   const totFat = data[0]?.faturamento || 0;
-  
   let singHtml = formHtml + `<div class="kpi-row">
     ${kpiCard({label:"Faturamento",value:fmtR(totFat),color:"#22c55e"})}
     ${kpiCard({label:"Descontos",value:fmtR(totDesc),color:"#ef4444"})}
     ${kpiCard({label:"Transportadora",value:fmtR(totTrans),color:"#f59e0b"})}
     ${kpiCard({label:"ATS",value:fmtR(totAts),color:"#8b5cf6"})}
   </div>`;
-
   const item = data[0];
   if(item && (item.obsDesconto || item.obsTransportadora || item.obsAts)) {
     singHtml += `<div class="card">${sectionTitle("Justificativas do Mês")}`;
@@ -1210,7 +1203,6 @@ function dynamicRiskSummary() {
   if (troc && troc.perc > 0.18) items.push(`Trocas de equipamentos em ${MES_FULL[last.mes] || last.mes} subiram para ${(troc.perc*100).toFixed(0)}% dos chamados.`);
   const topSintoma = mockData.sintomas[last.mes]?.[0];
   if (topSintoma) items.push(`Principal sintoma de ${MES_FULL[last.mes] || last.mes}: ${topSintoma.sintoma} (${topSintoma.perc}% dos chamados do mês).`);
-  
   if (!items.length) return "";
   return `<div class="card" style="border:2px solid #4f63f7;margin-bottom:24px">
     <p class="block-label" style="margin-bottom:10px">🆕 ATUALIZAÇÃO AUTOMÁTICA — ${(MES_FULL[last.mes]||last.mes).toUpperCase()}</p>
@@ -1220,17 +1212,15 @@ function dynamicRiskSummary() {
 function tabAtencao() {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
   const lastMes = mesesValidos[mesesValidos.length-1] || "Jan";
-  
   const last = mockData.chamados.find(c => c.mes === lastMes) || { mes: lastMes, percSLA: 0.8, chamados:0 };
   const desl = mockData.desligamentos.find(d=>d.mes===last.mes) || { desligamentos: 0, perc: 0 };
   const troc = mockData.substituicoes.find(d=>d.mes===last.mes) || { trocas: 0, perc: 0 };
   const cost = mockData.custos.find(d=>d.mes===last.mes) || { desconto: 0, transportadora: 0, ats: 0 };
-
   const riscos = [
     { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
       { ref:`SLA Operacional em ${MES_FULL[last.mes] || last.mes} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
       { ref:`Custo de Transportadora em ${MES_FULL[last.mes] || last.mes} — ${fmtR(cost.transportadora)}`,impacto:"Pressão sobre a margem operacional direta decorrente de fretes urgentes ou reenvios logísticos.",solucao:"Negociar contratos de tabela fixa com transportadoras de rota frequente." },
-      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução receita direta recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
+      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução receita direta recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retention focada." },
     ]},
     { cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
       { ref:`Sintoma Recorrente em ${MES_FULL[last.mes] || last.mes} (${esc(mockData.sintomas[last.mes]?.[0]?.sintoma || "Pneus")})`,impacto:"Alto volume de chamados previsíveis ocupando capacidade da assistência interna.",solucao:"Reforçar inspeção preventiva cíclica para mitigar reincidências mecânicas." },
@@ -1259,9 +1249,7 @@ function renderSidebar() {
   const profileLabel = currentUser?.isAnonymous 
     ? '<br><span style="color:#f59e0b">Somente visualização (Convidado)</span>'
     : (isEditor() ? '<br><span style="color:#22c55e">✓ Permissão de edição</span>' : '<br><span style="color:#f97316">Somente visualização</span>');
-
   const emailDisplay = currentUser?.isAnonymous ? "Convidado Geral" : esc(currentUser?.email || "");
-
   return `<div class="sidebar">
     <div class="sidebar-header">
       <div class="logo-box">⚡</div>
@@ -1276,7 +1264,7 @@ function renderSidebar() {
       <button class="theme-btn" id="themeToggle">
         <span style="display:flex;align-items:center;gap:8px">${state.dark?'☀️':'🌙'} ${state.dark?'Light Mode':'Dark Mode'}</span>
         <div class="toggle-track" style="background:${state.dark?'#4f63f7':'var(--card-border)'}">
-          <div class="toggle-dot" style="left:${state.dark?'16px':'3px'}"></div>
+        <div class="toggle-dot" style="left:${state.dark?'16px':'3px'}"></div>
         </div>
       </button>
       ${currentUser ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding:0 2px">Logado como<br><strong style="color:var(--text-primary)">${emailDisplay}</strong>${profileLabel}</div>
