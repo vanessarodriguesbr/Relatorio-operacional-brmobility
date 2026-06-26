@@ -157,7 +157,7 @@ let mockData = {
     Jan: [{ pos:"1º",sintoma:"Pneus",qtd:47,perc:26},{pos:"2º",sintoma:"Carregadores",qtd:35,perc:19},{pos:"3º",sintoma:"Inclinando/girando",qtd:14,perc:8},{pos:"4º",sintoma:"Torre/postura",qtd:14,perc:8},{pos:"5º",sintoma:"Não carrega/bateria",qtd:13,perc:7}],
     Fev: [{ pos:"1º",sintoma:"Pneus",qtd:35,perc:22},{pos:"2º",sintoma:"Pane/desligamento",qtd:12,perc:8},{pos:"3º",sintoma:"Improcedente",qtd:12,perc:8},{pos:"4º",sintoma:"Carregador",qtd:11,perc:7},{pos:"5º",sintoma:"Controle",qtd:8,perc:5}],
     Mar: [{ pos:"1º",sintoma:"Pneus",qtd:38,perc:21},{pos:"2º",sintoma:"Bateria/não carrega",qtd:21,perc:11},{pos:"3º",sintoma:"Guidão/postura",qtd:21,perc:11},{pos:"4º",sintoma:"Pane/desligamento",qtd:20,perc:11},{pos:"5º",sintoma:"Carregador",qtd:20,perc:11}],
-    Abr: [{ pos:"1º",sintoma:"Pneus",qtd:52,perc:24},{pos:"2º",sintoma:"Pane/desligamento",qtd:31,perc:14},{pos:"3º",sintoma:"Carregador",qtd:27,perc:13},{pos:"4º",sintoma:"Guidão/postura",qtd:24,perc:11},{pos:"5º",sintoma:"Não carrega/bateria",qtd:17,perc:8}],
+    Abr: [{ pos:"1º",sintoma:"Pneus",qtd:52,perc:24},{pos:"2º",sintoma:"Pane/desligamento",qtd:31,perc:14},{pos:"3º",sintoma:"Carregador",qtd:27,perc:13},{pos:"4º",sintoma:"Guidão/postura",qtd:24,border:11},{pos:"5º",sintoma:"Não carrega/bateria",qtd:17,perc:8}],
     Mai: [{ pos:"1º",sintoma:"Pneus",qtd:25,perc:21},{pos:"2º",sintoma:"Pane/desligamento",qtd:32,perc:19},{pos:"3º",sintoma:"Guidão/postura",qtd:31,perc:18},{pos:"4º",sintoma:"Não carrega/bateria",qtd:15,perc:9},{pos:"5º",sintoma:"Controle",qtd:8,perc:5}],
   },
   desligamentos: [
@@ -193,7 +193,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// HELPERS (LÓGICA DOS FILTROS CORRIGIDA: APENAS EXIBE SE HOUVER DADO REAL MAIOR QUE ZERO)
+// HELPERS
 // ─────────────────────────────────────────────────────────────────────────
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
@@ -240,8 +240,14 @@ function normalizarBancoDeDados() {
   if (!mockData.sintomas || typeof mockData.sintomas !== 'object') mockData.sintomas = {};
 
   ALL_MESES_ORDER.forEach(m => {
-    if (!mockData.chamados.some(c => c && c.mes === m)) mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
-    if (!mockData.custos.some(c => c && c.mes === m)) mockData.custos.push({ mes: m, chamados: 0, faturamento: 0, desconto: 0, transportadora: 0, ats: 0, obsDesconto:"", obsTransportadora:"", obsAts:"" });
+    let chExistente = mockData.chamados.find(c => c && c.mes === m);
+    if (!chExistente) {
+      mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
+    }
+    let custExistente = mockData.custos.find(c => c && c.mes === m);
+    if (!custExistente) {
+      mockData.custos.push({ mes: m, chamados: 0, faturamento: 0, desconto: 0, transportadora: 0, ats: 0, obsDesconto:"", obsTransportadora:"", obsAts:"" });
+    }
     if (!mockData.desligamentos.some(d => d && d.mes === m)) mockData.desligamentos.push({ mes: m, desligamentos: 0, perc: 0 });
     if (!mockData.substituicoes.some(s => s && s.mes === m)) mockData.substituicoes.push({ mes: m, trocas: 0, perc: 0 });
     if (!mockData.modelos[m]) mockData.modelos[m] = [];
@@ -342,7 +348,6 @@ function persist() {
 }
 
 function commitAndSave() {
-  normalizarBancoDeDados();
   persist();
   render();
 }
@@ -958,7 +963,7 @@ function tabChamados(mesFiltro) {
     ${data.map(row => kpiCard({label:"Chamados",value:fmt(row.chamados),color:"#5b7cf5"})
       + kpiCard({label:"Atendidos",value:fmt(row.atendidos),sub:fmtPct(row.percAtendidos),color:"#22c55e"})
       + kpiCard({label:"SLA",value:fmtPct(row.percSLA),color:row.percSLA>=0.8?"#22c55e":row.percSLA>=0.7?"#f97316":"#ef4444"})
-      + kpiCard({label:"No SLA",value:fmt(row.noSLA),color:"#8b5cf6"}).join(""))}
+      + kpiCard({label:"No SLA",value:fmt(row.noSLA),color:"#8b5cf6"})).join("")}
   </div>${chamadosTable(data)}`;
 }
 
@@ -1227,7 +1232,7 @@ function tabAtencao() {
   const desl = mockData.desligamentos.find(d=>d && d.mes===last.mes) || { desligamentos: 0, perc: 0 };
   const troc = mockData.substituicoes.find(d=>d && d.mes===last.mes) || { trocas: 0, perc: 0 };
   const cost = mockData.custos.find(d=>d && d.mes===last.mes) || { desconto: 0, transportadora: 0, ats: 0 };
-  const riscos = [
+  const risks = [
     { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
       { ref:`SLA Operacional em ${MES_FULL[last.mes] || last.mes} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
       { ref:`Custo de Transportadora em ${MES_FULL[last.mes] || last.mes} — ${fmtR(cost.transportadora)}`,impacto:"Pressão sobre a margem operacional direta decorrente de fretes urgentes ou reenvios logísticos.",solucao:"Negociar contratos de tabela fixa com transportadoras de rota frequente." },
@@ -1243,7 +1248,7 @@ function tabAtencao() {
   ];
 
   return dynamicRiskSummary() + sectionTitle("Matriz de Risco Operacional (Base Dinâmica)")
-  + riscos.map(({cor,bg,bord,titulo,itens}) => `<div style="margin-bottom:24px">
+  + risks.map(({cor,bg,bord,titulo,itens}) => `<div style="margin-bottom:24px">
     <p style="font-weight:700;font-size:14px;color:${cor};margin-bottom:12px">${titulo}</p>
     ${itens.map(item => `<div class="risk-box" style="background:${bg};border:1px solid ${bord}">
       <p class="risk-ref" style="color:${cor}">ℹ️ ${esc(item.ref)}</p>
