@@ -84,6 +84,20 @@
   .form-row5 select, .form-row5 input { padding:9px 10px; border-radius:8px; border:1px solid var(--card-border); background:var(--filter-bg); color:var(--text-primary); font-size:13px; }
   .form-submit-btn { background:#4f63f7; color:#fff; border:none; border-radius:8px; padding:10px 22px; font-size:13px; font-weight:600; cursor:pointer; }
   .form-submit-btn:hover { background:#3d50e0; }
+  .toggle-track { width:32px; height:18px; border-radius:9px; position:relative; transition:background .2s; }
+  .toggle-dot { position:absolute; top:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:left .2s; }
+  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .header { background:var(--header-bg); border-bottom:1px solid var(--card-border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; flex-wrap:wrap; gap:10px; }
+  .header-title { font-size:16px; font-weight:700; color:var(--text-primary); line-height:1.2; }
+  .header-sub { font-size:12px; color:var(--text-muted); }
+  .filters { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .filter-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--card-border); background:var(--filter-bg); color:var(--text-muted); font-size:12px; cursor:pointer; }
+  .filter-btn.active { border-color:#4f63f7; background:#4f63f7; color:#fff; font-weight:600; }
+  .content { flex:1; overflow-y:auto; padding:24px 28px; }
+  .card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; padding:20px 24px; margin-bottom:24px; }
+  .section-title { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin:0 0 14px; }
+  .block-label { font-size:11px; font-weight:700; color:var(--text-muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:12px; }
+  .block-divider { border-bottom:1px solid var(--card-border); padding-bottom:20px; margin-bottom:20px; }
   .form-status { font-size:12px; margin-left:10px; color:#22c55e; font-weight:600; }
 
   /* LOGIN */
@@ -193,7 +207,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// HELPERS (LÓGICA CORRIGIDA: MOSTRA OS MESES ASSIM QUE SÃO REGISTRADOS)
+// HELPERS (LÓGICA DOS FILTROS CORRIGIDA: APENAS EXIBE SE HOUVER DADO REAL)
 // ─────────────────────────────────────────────────────────────────────────
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
@@ -203,10 +217,15 @@ const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 function getMesesFiltro() {
   const setMeses = new Set();
   
-  mockData.chamados.forEach(c => { if(c.mes) setMeses.add(c.mes); });
-  mockData.custos.forEach(c => { if(c.mes) setMeses.add(c.mes); });
-  mockData.desligamentos.forEach(d => { if(d.mes) setMeses.add(d.mes); });
-  mockData.substituicoes.forEach(s => { if(s.mes) setMeses.add(s.mes); });
+  // Condição estrita: Só adiciona ao filtro do topo se os valores numéricos forem maiores que zero
+  mockData.chamados.forEach(c => { if(c.chamados > 0 || c.atendidos > 0) setMeses.add(c.mes); });
+  mockData.custos.forEach(c => { 
+    if(c.faturamento > 0 || c.desconto > 0 || c.transportadora > 0 || c.ats > 0 || c.obsDesconto || c.obsTransportadora || c.obsAts) {
+      setMeses.add(c.mes); 
+    }
+  });
+  mockData.desligamentos.forEach(d => { if(d.desligamentos > 0) setMeses.add(d.mes); });
+  mockData.substituicoes.forEach(s => { if(s.trocas > 0) setMeses.add(s.mes); });
   
   Object.keys(mockData.modelos).forEach(m => { if(mockData.modelos[m] && mockData.modelos[m].length > 0) setMeses.add(m); });
   Object.keys(mockData.sintomas).forEach(m => { if(mockData.sintomas[m] && mockData.sintomas[m].length > 0) setMeses.add(m); });
@@ -216,7 +235,8 @@ function getMesesFiltro() {
 }
 
 function normalizarBancoDeDados() {
-  const mesesComDados = getMesesFiltro().filter(m => m !== "Todos");
+  // Mantemos a normalização em plano de fundo sem inflar a interface visual
+  const mesesComDados = ALL_MESES_ORDER;
   
   mesesComDados.forEach(m => {
     if (!mockData.chamados.some(c => c.mes === m)) mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
@@ -238,7 +258,6 @@ function upsertByMes(arr, mes, obj) {
   const idx = arr.findIndex(x => x.mes === mes);
   if (idx >= 0) arr[idx] = { ...arr[idx], ...obj };
   else arr.push(obj);
-  normalizarBancoDeDados();
 }
 
 function monthSelectHtml(id) {
@@ -275,12 +294,10 @@ try {
 
 let currentUser = null;
 
-// Só quem tem o email exato da Vanessa tem superpoderes de edição
 function isEditor() {
   return currentUser && currentUser.email && currentUser.email.toLowerCase() === ALLOWED_EMAIL;
 }
 
-// Qualquer email @brmobility.com.br, a própria Vanessa, OU usuário anônimo tem permissão de leitura
 function isViewer() {
   if (!currentUser) return false;
   if (currentUser.isAnonymous) return true;
@@ -321,7 +338,6 @@ function persist() {
 }
 
 function commitAndSave() {
-  normalizarBancoDeDados();
   render();
   persist();
 }
@@ -521,11 +537,9 @@ function wireFormChamados() {
   [paIn,psIn].forEach(el => el.addEventListener('input', () => { el.dataset.touched = "1"; }));
   btn.addEventListener('click', () => {
     const mes = document.getElementById('f-ch-mes').value;
-    const chamados = parseFloat(chIn.value), atendidos = parseFloat(atIn.value), noSLA = parseFloat(slaIn.value);
-    const percAtendidos = parseFloat(paIn.value)/100, percSLA = parseFloat(psIn.value)/100;
-    if (!mes || isNaN(chamados) || isNaN(atendidos) || isNaN(noSLA) || isNaN(percAtendidos) || isNaN(percSLA)) {
-      alert('Preencha todos os campos corretamente.'); return;
-    }
+    const chamados = parseFloat(chIn.value) || 0, atendidos = parseFloat(atIn.value) || 0, noSLA = parseFloat(slaIn.value) || 0;
+    const percAtendidos = (parseFloat(paIn.value) || 0)/100, percSLA = (parseFloat(psIn.value) || 0)/100;
+    if (!mes) { alert('Selecione o mês.'); return; }
     upsertByMes(mockData.chamados, mes, { mes, chamados, atendidos, percAtendidos, noSLA, percSLA });
     document.getElementById('f-ch-status').textContent = 'Salvo ✓';
     commitAndSave();
@@ -560,17 +574,18 @@ function wireFormModelos() {
     const rows = [];
     for (let i=0;i<5;i++) {
       const modelo = document.getElementById(`f-mo-nome-${i}`).value;
-      const qtd = parseFloat(document.getElementById(`f-mo-qtd-${i}`).value);
-      const perc = parseFloat(document.getElementById(`f-mo-perc-${i}`).value);
-      if (modelo && !isNaN(qtd) && !isNaN(perc)) rows.push({ pos:`${i+1}º`, modelo, qtd, perc });
+      const qtd = parseFloat(document.getElementById(`f-mo-qtd-${i}`).value) || 0;
+      const perc = parseFloat(document.getElementById(`f-mo-perc-${i}`).value) || 0;
+      if (modelo) rows.push({ pos:`${i+1}º`, modelo, qtd, perc });
     }
-    if (!mes || rows.length===0) { alert('Selecione o mês e preencha ao menos uma linha.'); return; }
+    if (!mes) { alert('Selecione o mês.'); return; }
     mockData.modelos[mes] = rows;
     document.getElementById('f-mo-status').textContent = 'Salvo ✓';
     commitAndSave();
   });
 }
 
+// Limpeza explícita dos zeros na renderização dos formulários vazios
 function formSintomas() {
   return `<div class="card form-card">
     <p class="block-label">➕ ADICIONAR / ATUALIZAR TOP 5 SINTOMAS DO MÊS</p>
@@ -587,11 +602,11 @@ function wireFormSintomas() {
     const rows = [];
     for (let i=0;i<5;i++) {
       const sintoma = document.getElementById(`f-si-nome-${i}`).value.trim();
-      const qtd = parseFloat(document.getElementById(`f-si-qtd-${i}`).value);
-      const perc = parseFloat(document.getElementById(`f-si-perc-${i}`).value);
-      if (sintoma && !isNaN(qtd) && !isNaN(perc)) rows.push({ pos:`${i+1}º`, sintoma, qtd, perc });
+      const qtd = parseFloat(document.getElementById(`f-si-qtd-${i}`).value) || 0;
+      const perc = parseFloat(document.getElementById(`f-si-perc-${i}`).value) || 0;
+      if (sintoma) rows.push({ pos:`${i+1}º`, sintoma, qtd, perc });
     }
-    if (!mes || rows.length===0) { alert('Selecione o mês e preencha ao menos uma linha.'); return; }
+    if (!mes) { alert('Selecione o mês.'); return; }
     mockData.sintomas[mes] = rows;
     document.getElementById('f-si-status').textContent = 'Salvo ✓';
     commitAndSave();
@@ -621,8 +636,8 @@ function wireFormDesligamentos() {
   qtdIn.addEventListener('input', suggest); mesSel.addEventListener('change', suggest);
   percIn.addEventListener('input', () => { percIn.dataset.touched = "1"; });
   btn.addEventListener('click', () => {
-    const mes = mesSel.value, desligamentos = parseFloat(qtdIn.value), perc = parseFloat(percIn.value)/100;
-    if (!mes || isNaN(desligamentos) || isNaN(perc)) { alert('Preencha todos os campos.'); return; }
+    const mes = mesSel.value, desligamentos = parseFloat(qtdIn.value) || 0, perc = (parseFloat(percIn.value) || 0)/100;
+    if (!mes) { alert('Selecione o mês.'); return; }
     upsertByMes(mockData.desligamentos, mes, { mes, desligamentos, perc });
     document.getElementById('f-de-status').textContent = 'Salvo ✓';
     commitAndSave();
@@ -652,8 +667,8 @@ function wireFormTrocas() {
   qtdIn.addEventListener('input', suggest); mesSel.addEventListener('change', suggest);
   percIn.addEventListener('input', () => { percIn.dataset.touched = "1"; });
   btn.addEventListener('click', () => {
-    const mes = mesSel.value, trocas = parseFloat(qtdIn.value), perc = parseFloat(percIn.value)/100;
-    if (!mes || isNaN(trocas) || isNaN(perc)) { alert('Preencha todos os campos.'); return; }
+    const mes = mesSel.value, trocas = parseFloat(qtdIn.value) || 0, perc = (parseFloat(percIn.value) || 0)/100;
+    if (!mes) { alert('Selecione o mês.'); return; }
     upsertByMes(mockData.substituicoes, mes, { mes, trocas, perc });
     document.getElementById('f-tr-status').textContent = 'Salvo ✓';
     commitAndSave();
@@ -686,10 +701,11 @@ function wireFormCustos() {
   function carregarObsExistentes() {
     const mes = mesSel.value;
     const custoExistente = mockData.custos.find(c => c.mes === mes);
+    // Se o valor for 0, deixamos em branco no formulário para você poder editar/salvar sem travar o zero
     document.getElementById('f-cu-fat').value = custoExistente && custoExistente.faturamento ? custoExistente.faturamento : "";
-    document.getElementById('f-cu-desc').value = custoExistente && custoExistente.desconto !== undefined ? custoExistente.desconto : "";
-    document.getElementById('f-cu-trans').value = custoExistente && custoExistente.transportadora !== undefined ? custoExistente.transportadora : "";
-    document.getElementById('f-cu-ats').value = custoExistente && custoExistente.ats !== undefined ? custoExistente.ats : "";
+    document.getElementById('f-cu-desc').value = custoExistente && custoExistente.desconto ? custoExistente.desconto : "";
+    document.getElementById('f-cu-trans').value = custoExistente && custoExistente.transportadora ? custoExistente.transportadora : "";
+    document.getElementById('f-cu-ats').value = custoExistente && custoExistente.ats ? custoExistente.ats : "";
     document.getElementById('f-cu-obs-desc').value = custoExistente?.obsDesconto || "";
     document.getElementById('f-cu-obs-trans').value = custoExistente?.obsTransportadora || "";
     document.getElementById('f-cu-obs-ats').value = custoExistente?.obsAts || "";
@@ -864,7 +880,7 @@ function tabVisaoGeral(mesFiltro) {
       ${[
         { titulo:"Acompanhamento Preventivo de SLA", texto:"Flutuações de SLA representam riscos estruturais. Recomenda-se revisão do protocolo de escalonamento para chamados de grande volume." },
         { titulo:"Escalada e Prevenção de Desligamentos", texto:"O crescimento de desligamentos sugere monitoramento rigoroso da frota ou processos operacionais pendentes." },
-        { titulo:"Gestão Preventiva de Insumos de Campo", texto:"Sintomas mecânicos recorrentes apontam para a necessidade de um programa preventivo and acompanhamento cíclico das rotas." },
+        { titulo:"Gestão Preventiva de Insumos de Campo", texto:"Sintomas mecânicos recorrentes apontam para a necessidade de um programa preventivo e acompanhamento cíclico das rotas." },
       ].map(({titulo,texto}) => `<div class="diag-item"><p class="diag-title">${esc(titulo)}</p><p class="diag-text">${esc(texto)}</p></div>`).join("")}
     </div>`;
     return html;
@@ -1221,7 +1237,7 @@ function tabAtencao() {
     { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
       { ref:`SLA Operacional em ${MES_FULL[last.mes] || last.mes} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
       { ref:`Custo de Transportadora em ${MES_FULL[last.mes] || last.mes} — ${fmtR(cost.transportadora)}`,impacto:"Pressão sobre a margem operacional direta decorrente de fretes urgentes ou reenvios logísticos.",solucao:"Negociar contratos de tabela fixa com transportadoras de rota frequente." },
-      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução receita reuniões recurrent e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
+      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução receita receita reuniões recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
     ]},
     { cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
       { ref:`Sintoma Recorrente em ${MES_FULL[last.mes] || last.mes} (${esc(mockData.sintomas[last.mes]?.[0]?.sintoma || "Pneus")})`,impacto:"Alto volume de chamados previsíveis ocupando capacidade da assistência interna.",solucao:"Reforçar inspeção preventiva cíclica para mitigar reincidências mecânicas." },
