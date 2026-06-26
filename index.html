@@ -84,20 +84,6 @@
   .form-row5 select, .form-row5 input { padding:9px 10px; border-radius:8px; border:1px solid var(--card-border); background:var(--filter-bg); color:var(--text-primary); font-size:13px; }
   .form-submit-btn { background:#4f63f7; color:#fff; border:none; border-radius:8px; padding:10px 22px; font-size:13px; font-weight:600; cursor:pointer; }
   .form-submit-btn:hover { background:#3d50e0; }
-  .toggle-track { width:32px; height:18px; border-radius:9px; position:relative; transition:background .2s; }
-  .toggle-dot { position:absolute; top:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:left .2s; }
-  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-  .header { background:var(--header-bg); border-bottom:1px solid var(--card-border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; flex-wrap:wrap; gap:10px; }
-  .header-title { font-size:16px; font-weight:700; color:var(--text-primary); line-height:1.2; }
-  .header-sub { font-size:12px; color:var(--text-muted); }
-  .filters { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-  .filter-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--card-border); background:var(--filter-bg); color:var(--text-muted); font-size:12px; cursor:pointer; }
-  .filter-btn.active { border-color:#4f63f7; background:#4f63f7; color:#fff; font-weight:600; }
-  .content { flex:1; overflow-y:auto; padding:24px 28px; }
-  .card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; padding:20px 24px; margin-bottom:24px; }
-  .section-title { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin:0 0 14px; }
-  .block-label { font-size:11px; font-weight:700; color:var(--text-muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:12px; }
-  .block-divider { border-bottom:1px solid var(--card-border); padding-bottom:20px; margin-bottom:20px; }
   .form-status { font-size:12px; margin-left:10px; color:#22c55e; font-weight:600; }
 
   /* LOGIN */
@@ -207,7 +193,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// HELPERS (LÓGICA DOS FILTROS CORRIGIDA: APENAS EXIBE SE HOUVER DADO REAL)
+// HELPERS (LÓGICA DOS FILTROS CORRIGIDA: APENAS EXIBE SE HOUVER DADO PREENCHIDO MAIOR QUE ZERO)
 // ─────────────────────────────────────────────────────────────────────────
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
@@ -217,7 +203,6 @@ const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 function getMesesFiltro() {
   const setMeses = new Set();
   
-  // Condição estrita: Só adiciona ao filtro do topo se os valores numéricos forem maiores que zero
   mockData.chamados.forEach(c => { if(c.chamados > 0 || c.atendidos > 0) setMeses.add(c.mes); });
   mockData.custos.forEach(c => { 
     if(c.faturamento > 0 || c.desconto > 0 || c.transportadora > 0 || c.ats > 0 || c.obsDesconto || c.obsTransportadora || c.obsAts) {
@@ -235,7 +220,6 @@ function getMesesFiltro() {
 }
 
 function normalizarBancoDeDados() {
-  // Mantemos a normalização em plano de fundo sem inflar a interface visual
   const mesesComDados = ALL_MESES_ORDER;
   
   mesesComDados.forEach(m => {
@@ -338,6 +322,7 @@ function persist() {
 }
 
 function commitAndSave() {
+  normalizarBancoDeDados();
   render();
   persist();
 }
@@ -585,7 +570,6 @@ function wireFormModelos() {
   });
 }
 
-// Limpeza explícita dos zeros na renderização dos formulários vazios
 function formSintomas() {
   return `<div class="card form-card">
     <p class="block-label">➕ ADICIONAR / ATUALIZAR TOP 5 SINTOMAS DO MÊS</p>
@@ -644,6 +628,7 @@ function wireFormDesligamentos() {
   });
 }
 
+// Correção sutil no carregamento das observações e no push dos custos
 function formTrocas() {
   return `<div class="card form-card">
     <p class="block-label">➕ ADICIONAR / ATUALIZAR MÊS — TROCAS DE EQUIPAMENTOS</p>
@@ -701,7 +686,6 @@ function wireFormCustos() {
   function carregarObsExistentes() {
     const mes = mesSel.value;
     const custoExistente = mockData.custos.find(c => c.mes === mes);
-    // Se o valor for 0, deixamos em branco no formulário para você poder editar/salvar sem travar o zero
     document.getElementById('f-cu-fat').value = custoExistente && custoExistente.faturamento ? custoExistente.faturamento : "";
     document.getElementById('f-cu-desc').value = custoExistente && custoExistente.desconto ? custoExistente.desconto : "";
     document.getElementById('f-cu-trans').value = custoExistente && custoExistente.transportadora ? custoExistente.transportadora : "";
@@ -1211,7 +1195,7 @@ function dynamicRiskSummary() {
   const troc = mockData.substituicoes.find(d=>d.mes===last.mes);
   
   const items = [];
-  if (last.percSLA && last.percSLA < 0.7) items.push(`SLA de ${MES_FULL[last.mes] || last.mes} está em ${(last.percSLA*100).toFixed(0)}% — abaixo da meta de 80%. Atenção imediata recomendada.`);
+  if (last.percSLA && last.percSLA < 0.7) items.push(`SLA de ${MES_FULL[last.mes] || last.mes} está em ${(last.percSLA*100).toFixed(0)}% — abaixo da meta de 80%. Meta não atingida.`);
   else if (last.percSLA && last.percSLA >= 0.85) items.push(`SLA de ${MES_FULL[last.mes] || last.mes} está saudável, em ${(last.percSLA*100).toFixed(0)}%.`);
   if (desl && desl.perc > 0.1) items.push(`Desligamentos de ${MES_FULL[last.mes] || last.mes} representam ${(desl.perc*100).toFixed(0)}% dos chamados — acima do padrão histórico.`);
   if (troc && troc.perc > 0.18) items.push(`Trocas de equipamentos em ${MES_FULL[last.mes] || last.mes} subiram para ${(troc.perc*100).toFixed(0)}% dos chamados.`);
@@ -1237,7 +1221,7 @@ function tabAtencao() {
     { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
       { ref:`SLA Operacional em ${MES_FULL[last.mes] || last.mes} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
       { ref:`Custo de Transportadora em ${MES_FULL[last.mes] || last.mes} — ${fmtR(cost.transportadora)}`,impacto:"Pressão sobre a margem operacional direta decorrente de fretes urgentes ou reenvios logísticos.",solucao:"Negociar contratos de tabela fixa com transportadoras de rota frequente." },
-      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução receita receita reuniões recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
+      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução receita direta recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
     ]},
     { cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
       { ref:`Sintoma Recorrente em ${MES_FULL[last.mes] || last.mes} (${esc(mockData.sintomas[last.mes]?.[0]?.sintoma || "Pneus")})`,impacto:"Alto volume de chamados previsíveis ocupando capacidade da assistência interna.",solucao:"Reforçar inspeção preventiva cíclica para mitigar reincidências mecânicas." },
