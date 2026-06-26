@@ -1,12 +1,8 @@
-Aqui está o arquivo completo, atualizado, para você copiar manualmente (selecione tudo dentro do bloco abaixo, copie e cole no GitHub substituindo o conteúdo inteiro do `index.html`):
-
-```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <title>BRMobility - Dashboard Operacional</title>
-<!-- Firebase SDK (compat, funciona sem build/módulos) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -79,6 +75,16 @@ Aqui está o arquivo completo, atualizado, para você copiar manualmente (seleci
   .risk-text { font-size:12px; margin:0 0 6px; color:#374151; }
   .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
   .tooltip-box { position:absolute; background:var(--tt-bg); border:1px solid var(--tt-border); border-radius:8px; padding:10px 14px; font-size:12px; color:var(--tt-text); line-height:1.7; min-width:170px; pointer-events:none; z-index:10; box-shadow:0 4px 14px rgba(0,0,0,0.15); }
+  .form-card { border:2px dashed #4f63f7; }
+  .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:14px; }
+  .form-field label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:600; }
+  .form-field input, .form-field select { width:100%; padding:10px 11px; border-radius:8px; border:1px solid var(--card-border); background:var(--filter-bg); color:var(--text-primary); font-size:13px; outline:none; }
+  .form-field input:focus, .form-field select:focus { border-color:#4f63f7; }
+  .form-row5 { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
+  .form-row5 select, .form-row5 input { padding:9px 10px; border-radius:8px; border:1px solid var(--card-border); background:var(--filter-bg); color:var(--text-primary); font-size:13px; }
+  .form-submit-btn { background:#4f63f7; color:#fff; border:none; border-radius:8px; padding:10px 22px; font-size:13px; font-weight:600; cursor:pointer; }
+  .form-submit-btn:hover { background:#3d50e0; }
+  .form-status { font-size:12px; margin-left:10px; color:#22c55e; font-weight:600; }
 
   /* LOGIN */
   .login-page { min-height:100vh; background:#eef1f3; font-family:'Inter',-apple-system,sans-serif; display:flex; flex-direction:column; }
@@ -130,9 +136,9 @@ Aqui está o arquivo completo, atualizado, para você copiar manualmente (seleci
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────
-// DADOS
+// DADOS (valores iniciais — depois disso o Firestore é a fonte da verdade)
 // ─────────────────────────────────────────────────────────────────────────
-const mockData = {
+let mockData = {
   chamados: [
     { mes: "Jan", chamados: 184, atendidos: 171, percAtendidos: 0.93, noSLA: 155, percSLA: 0.84 },
     { mes: "Fev", chamados: 156, atendidos: 128, percAtendidos: 0.82, noSLA: 133, percSLA: 0.85 },
@@ -171,8 +177,9 @@ const mockData = {
   ],
 };
 
-const MESES = ["Todos","Jan","Fev","Mar","Abr","Mai"];
-const MES_FULL = { Jan:"Janeiro",Fev:"Fevereiro",Mar:"Março",Abr:"Abril",Mai:"Maio" };
+const ALL_MESES_ORDER = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const MES_FULL = { Jan:"Janeiro",Fev:"Fevereiro",Mar:"Março",Abr:"Abril",Mai:"Maio",Jun:"Junho",Jul:"Julho",Ago:"Agosto",Set:"Setembro",Out:"Outubro",Nov:"Novembro",Dez:"Dezembro" };
+const MODELOS_OPCOES = ["S6","S8","R8","BR8","S9","H9","S9X","H9X","I2","X2","I3","X3","VIPS","VIP","S10","S10X"];
 
 const NAV = [
   { id:"visao", label:"Visão Geral", icon:"🏠" },
@@ -188,10 +195,31 @@ const NAV = [
 // ─────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────
-const fmt = v => (v==null?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
-const fmtR = v => (v==null?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
-const fmtPct = v => (v==null?"-":`${(v*100).toFixed(1)}%`);
+const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
+const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
+const fmtPct = v => (v==null||isNaN(v)?"-":`${(v*100).toFixed(1)}%`);
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function getMesesFiltro() {
+  const presentes = mockData.chamados.map(c => c.mes);
+  const ordenados = ALL_MESES_ORDER.filter(m => presentes.includes(m));
+  return ["Todos", ...ordenados];
+}
+
+function upsertByMes(arr, mes, obj) {
+  const idx = arr.findIndex(x => x.mes === mes);
+  if (idx >= 0) arr[idx] = { ...arr[idx], ...obj };
+  else {
+    arr.push(obj);
+    arr.sort((a,b) => ALL_MESES_ORDER.indexOf(a.mes) - ALL_MESES_ORDER.indexOf(b.mes));
+  }
+}
+
+function monthSelectHtml(id) {
+  return `<select id="${id}">
+    ${ALL_MESES_ORDER.map(m => `<option value="${m}">${MES_FULL[m]} (${m})</option>`).join("")}
+  </select>`;
+}
 
 let state = { aba: "visao", mes: "Todos", dark: true };
 
@@ -219,20 +247,48 @@ try {
   console.warn("Firebase não inicializado (verifique firebaseConfig):", e);
 }
 
-async function loadDataAndRender() {
-  render();
+let currentUser = null;
+function isEditor() {
+  return currentUser && currentUser.email && currentUser.email.toLowerCase() === ALLOWED_EMAIL;
 }
 
-window.saveDataToFirebase = async function() {
-  if (!db) { console.error("Firebase não inicializado."); return; }
-  if (!isEditor()) { console.error("Apenas " + ALLOWED_EMAIL + " pode salvar alterações."); return; }
-  try {
-    await db.collection("dashboard").doc("data").set(mockData);
-    console.info("Dados enviados ao Firestore com sucesso.");
-  } catch (e) {
-    console.error("Erro ao salvar no Firestore:", e);
-  }
-};
+// Sincronização em tempo real — qualquer alteração salva por Vanessa
+// aparece automaticamente para todos que estiverem com o link aberto.
+let unsubscribeSnapshot = null;
+function startRealtimeSync() {
+  if (!db) { render(); return; }
+  if (unsubscribeSnapshot) unsubscribeSnapshot();
+  unsubscribeSnapshot = db.collection("dashboard").doc("data").onSnapshot(doc => {
+    if (doc.exists) {
+      const remote = doc.data();
+      mockData.chamados = remote.chamados || mockData.chamados;
+      mockData.modelos = remote.modelos || mockData.modelos;
+      mockData.sintomas = remote.sintomas || mockData.sintomas;
+      mockData.desligamentos = remote.desligamentos || mockData.desligamentos;
+      mockData.substituicoes = remote.substituicoes || mockData.substituicoes;
+      mockData.custos = remote.custos || mockData.custos;
+    } else if (isEditor()) {
+      db.collection("dashboard").doc("data").set(mockData).catch(e => console.error(e));
+    }
+    render();
+  }, err => {
+    console.error("Erro de sincronização com Firestore:", err);
+    render();
+  });
+}
+
+function persist() {
+  if (!db) { console.warn("Firestore não disponível."); return; }
+  if (!isEditor()) { console.warn("Sem permissão para salvar."); return; }
+  db.collection("dashboard").doc("data").set(mockData)
+    .then(() => console.info("Dados salvos no Firestore."))
+    .catch(e => console.error("Erro ao salvar:", e));
+}
+
+function commitAndSave() {
+  render();
+  persist();
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // LOGIN / AUTENTICAÇÃO
@@ -334,17 +390,13 @@ function setupAuthGate() {
   auth.onAuthStateChanged(user => {
     if (user) {
       currentUser = user;
-      loadDataAndRender();
+      startRealtimeSync();
     } else {
       currentUser = null;
+      if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
       renderLoginGate();
     }
   });
-}
-
-let currentUser = null;
-function isEditor() {
-  return currentUser && currentUser.email && currentUser.email.toLowerCase() === ALLOWED_EMAIL;
 }
 
 window.logout = function() {
@@ -352,7 +404,7 @@ window.logout = function() {
 };
 
 // ─────────────────────────────────────────────────────────────────────────
-// HBAR
+// HBAR / KPI / SECTION HELPERS
 // ─────────────────────────────────────────────────────────────────────────
 function hbar({ value, max, color, label, valueLabel, height=18, labelWidth=28 }) {
   const pct = Math.min((value/max)*100, 100);
@@ -366,12 +418,10 @@ function hbar({ value, max, color, label, valueLabel, height=18, labelWidth=28 }
     <span class="hbar-value">${esc(valueLabel)}</span>
   </div>`;
 }
-
 function autoLabelWidth(labels) {
   const maxLen = Math.max(...labels.map(l => l.length));
   return Math.min(Math.max(maxLen*7, 40), 200);
 }
-
 function kpiCard({ label, value, sub, color="#5b7cf5" }) {
   return `<div class="kpi-card">
     <p class="kpi-label">${esc(label)}</p>
@@ -379,8 +429,223 @@ function kpiCard({ label, value, sub, color="#5b7cf5" }) {
     ${sub?`<p class="kpi-sub">${esc(sub)}</p>`:""}
   </div>`;
 }
-
 function sectionTitle(txt) { return `<h3 class="section-title">${esc(txt)}</h3>`; }
+
+// ─────────────────────────────────────────────────────────────────────────
+// FORMULÁRIOS DE EDIÇÃO (somente visíveis para o e-mail autorizado)
+// ─────────────────────────────────────────────────────────────────────────
+function formChamados() {
+  return `<div class="card form-card">
+    <p class="block-label">➕ ADICIONAR / ATUALIZAR MÊS — CHAMADOS</p>
+    <div class="form-grid">
+      <div class="form-field"><label>Mês</label>${monthSelectHtml('f-ch-mes')}</div>
+      <div class="form-field"><label>Total de Chamados</label><input type="number" id="f-ch-chamados" placeholder="ex: 180"/></div>
+      <div class="form-field"><label>Atendidos no mês</label><input type="number" id="f-ch-atendidos" placeholder="ex: 150"/></div>
+      <div class="form-field"><label>% Atendidos (sobre total)</label><input type="number" step="0.1" id="f-ch-percatend" placeholder="sugestão automática"/></div>
+      <div class="form-field"><label>Atendidos no SLA</label><input type="number" id="f-ch-nosla" placeholder="ex: 130"/></div>
+      <div class="form-field"><label>% SLA (sobre total)</label><input type="number" step="0.1" id="f-ch-percsla" placeholder="sugestão automática"/></div>
+    </div>
+    <button class="form-submit-btn" id="f-ch-submit">Salvar mês</button>
+    <span id="f-ch-status" class="form-status"></span>
+  </div>`;
+}
+function wireFormChamados() {
+  const btn = document.getElementById('f-ch-submit'); if (!btn) return;
+  const chIn=document.getElementById('f-ch-chamados'), atIn=document.getElementById('f-ch-atendidos'),
+        slaIn=document.getElementById('f-ch-nosla'), paIn=document.getElementById('f-ch-percatend'), psIn=document.getElementById('f-ch-percsla');
+  function suggest() {
+    const ch=parseFloat(chIn.value), at=parseFloat(atIn.value), sl=parseFloat(slaIn.value);
+    if (ch>0) {
+      if (!isNaN(at) && !paIn.dataset.touched) paIn.value = ((at/ch)*100).toFixed(1);
+      if (!isNaN(sl) && !psIn.dataset.touched) psIn.value = ((sl/ch)*100).toFixed(1);
+    }
+  }
+  [chIn,atIn,slaIn].forEach(el => el.addEventListener('input', suggest));
+  [paIn,psIn].forEach(el => el.addEventListener('input', () => { el.dataset.touched = "1"; }));
+  btn.addEventListener('click', () => {
+    const mes = document.getElementById('f-ch-mes').value;
+    const chamados = parseFloat(chIn.value), atendidos = parseFloat(atIn.value), noSLA = parseFloat(slaIn.value);
+    const percAtendidos = parseFloat(paIn.value)/100, percSLA = parseFloat(psIn.value)/100;
+    if (!mes || isNaN(chamados) || isNaN(atendidos) || isNaN(noSLA) || isNaN(percAtendidos) || isNaN(percSLA)) {
+      alert('Preencha todos os campos corretamente.'); return;
+    }
+    upsertByMes(mockData.chamados, mes, { mes, chamados, atendidos, percAtendidos, noSLA, percSLA });
+    document.getElementById('f-ch-status').textContent = 'Salvo ✓';
+    commitAndSave();
+  });
+}
+
+function form5Rows(prefix, withSelectOptions) {
+  return [0,1,2,3,4].map(i => `
+    <div class="form-row5">
+      <span style="width:24px;font-size:12px;color:var(--text-muted)">${i+1}º</span>
+      ${withSelectOptions
+        ? `<select id="${prefix}-nome-${i}" style="flex:2"><option value="">Selecione...</option>${MODELOS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join("")}</select>`
+        : `<input type="text" id="${prefix}-nome-${i}" placeholder="Nome do sintoma" style="flex:2"/>`}
+      <input type="number" id="${prefix}-qtd-${i}" placeholder="Qtd" style="flex:1"/>
+      <input type="number" id="${prefix}-perc-${i}" placeholder="%" style="flex:1"/>
+    </div>`).join("");
+}
+
+function formModelos() {
+  return `<div class="card form-card">
+    <p class="block-label">➕ ADICIONAR / ATUALIZAR TOP 5 MODELOS DO MÊS</p>
+    <div class="form-field" style="max-width:240px;margin-bottom:14px"><label>Mês</label>${monthSelectHtml('f-mo-mes')}</div>
+    ${form5Rows('f-mo', true)}
+    <button class="form-submit-btn" id="f-mo-submit" style="margin-top:10px">Salvar mês</button>
+    <span id="f-mo-status" class="form-status"></span>
+  </div>`;
+}
+function wireFormModelos() {
+  const btn = document.getElementById('f-mo-submit'); if (!btn) return;
+  btn.addEventListener('click', () => {
+    const mes = document.getElementById('f-mo-mes').value;
+    const rows = [];
+    for (let i=0;i<5;i++) {
+      const modelo = document.getElementById(`f-mo-nome-${i}`).value;
+      const qtd = parseFloat(document.getElementById(`f-mo-qtd-${i}`).value);
+      const perc = parseFloat(document.getElementById(`f-mo-perc-${i}`).value);
+      if (modelo && !isNaN(qtd) && !isNaN(perc)) rows.push({ pos:`${i+1}º`, modelo, qtd, perc });
+    }
+    if (!mes || rows.length===0) { alert('Selecione o mês e preencha ao menos uma linha.'); return; }
+    mockData.modelos[mes] = rows;
+    document.getElementById('f-mo-status').textContent = 'Salvo ✓';
+    commitAndSave();
+  });
+}
+
+function formSintomas() {
+  return `<div class="card form-card">
+    <p class="block-label">➕ ADICIONAR / ATUALIZAR TOP 5 SINTOMAS DO MÊS</p>
+    <div class="form-field" style="max-width:240px;margin-bottom:14px"><label>Mês</label>${monthSelectHtml('f-si-mes')}</div>
+    ${form5Rows('f-si', false)}
+    <button class="form-submit-btn" id="f-si-submit" style="margin-top:10px">Salvar mês</button>
+    <span id="f-si-status" class="form-status"></span>
+  </div>`;
+}
+function wireFormSintomas() {
+  const btn = document.getElementById('f-si-submit'); if (!btn) return;
+  btn.addEventListener('click', () => {
+    const mes = document.getElementById('f-si-mes').value;
+    const rows = [];
+    for (let i=0;i<5;i++) {
+      const sintoma = document.getElementById(`f-si-nome-${i}`).value.trim();
+      const qtd = parseFloat(document.getElementById(`f-si-qtd-${i}`).value);
+      const perc = parseFloat(document.getElementById(`f-si-perc-${i}`).value);
+      if (sintoma && !isNaN(qtd) && !isNaN(perc)) rows.push({ pos:`${i+1}º`, sintoma, qtd, perc });
+    }
+    if (!mes || rows.length===0) { alert('Selecione o mês e preencha ao menos uma linha.'); return; }
+    mockData.sintomas[mes] = rows;
+    document.getElementById('f-si-status').textContent = 'Salvo ✓';
+    commitAndSave();
+  });
+}
+
+function formDesligamentos() {
+  return `<div class="card form-card">
+    <p class="block-label">➕ ADICIONAR / ATUALIZAR MÊS — DESLIGAMENTOS</p>
+    <div class="form-grid">
+      <div class="form-field"><label>Mês</label>${monthSelectHtml('f-de-mes')}</div>
+      <div class="form-field"><label>Qtd. de Desligamentos</label><input type="number" id="f-de-qtd" placeholder="ex: 15"/></div>
+      <div class="form-field"><label>% sobre chamados do mês</label><input type="number" step="0.1" id="f-de-perc" placeholder="sugestão automática"/></div>
+    </div>
+    <button class="form-submit-btn" id="f-de-submit">Salvar mês</button>
+    <span id="f-de-status" class="form-status"></span>
+  </div>`;
+}
+function wireFormDesligamentos() {
+  const btn = document.getElementById('f-de-submit'); if (!btn) return;
+  const mesSel=document.getElementById('f-de-mes'), qtdIn=document.getElementById('f-de-qtd'), percIn=document.getElementById('f-de-perc');
+  function suggest() {
+    const c = mockData.chamados.find(c => c.mes === mesSel.value);
+    const q = parseFloat(qtdIn.value);
+    if (c && c.chamados>0 && !isNaN(q) && !percIn.dataset.touched) percIn.value = ((q/c.chamados)*100).toFixed(1);
+  }
+  qtdIn.addEventListener('input', suggest); mesSel.addEventListener('change', suggest);
+  percIn.addEventListener('input', () => { percIn.dataset.touched = "1"; });
+  btn.addEventListener('click', () => {
+    const mes = mesSel.value, desligamentos = parseFloat(qtdIn.value), perc = parseFloat(percIn.value)/100;
+    if (!mes || isNaN(desligamentos) || isNaN(perc)) { alert('Preencha todos os campos.'); return; }
+    upsertByMes(mockData.desligamentos, mes, { mes, desligamentos, perc });
+    document.getElementById('f-de-status').textContent = 'Salvo ✓';
+    commitAndSave();
+  });
+}
+
+function formTrocas() {
+  return `<div class="card form-card">
+    <p class="block-label">➕ ADICIONAR / ATUALIZAR MÊS — TROCAS DE EQUIPAMENTOS</p>
+    <div class="form-grid">
+      <div class="form-field"><label>Mês</label>${monthSelectHtml('f-tr-mes')}</div>
+      <div class="form-field"><label>Qtd. de Trocas</label><input type="number" id="f-tr-qtd" placeholder="ex: 22"/></div>
+      <div class="form-field"><label>% sobre chamados do mês</label><input type="number" step="0.1" id="f-tr-perc" placeholder="sugestão automática"/></div>
+    </div>
+    <button class="form-submit-btn" id="f-tr-submit">Salvar mês</button>
+    <span id="f-tr-status" class="form-status"></span>
+  </div>`;
+}
+function wireFormTrocas() {
+  const btn = document.getElementById('f-tr-submit'); if (!btn) return;
+  const mesSel=document.getElementById('f-tr-mes'), qtdIn=document.getElementById('f-tr-qtd'), percIn=document.getElementById('f-tr-perc');
+  function suggest() {
+    const c = mockData.chamados.find(c => c.mes === mesSel.value);
+    const q = parseFloat(qtdIn.value);
+    if (c && c.chamados>0 && !isNaN(q) && !percIn.dataset.touched) percIn.value = ((q/c.chamados)*100).toFixed(1);
+  }
+  qtdIn.addEventListener('input', suggest); mesSel.addEventListener('change', suggest);
+  percIn.addEventListener('input', () => { percIn.dataset.touched = "1"; });
+  btn.addEventListener('click', () => {
+    const mes = mesSel.value, trocas = parseFloat(qtdIn.value), perc = parseFloat(percIn.value)/100;
+    if (!mes || isNaN(trocas) || isNaN(perc)) { alert('Preencha todos os campos.'); return; }
+    upsertByMes(mockData.substituicoes, mes, { mes, trocas, perc });
+    document.getElementById('f-tr-status').textContent = 'Salvo ✓';
+    commitAndSave();
+  });
+}
+
+function formCustos() {
+  return `<div class="card form-card">
+    <p class="block-label">➕ ADICIONAR / ATUALIZAR MÊS — CUSTOS OPERACIONAIS</p>
+    <div class="form-grid">
+      <div class="form-field"><label>Mês</label>${monthSelectHtml('f-cu-mes')}</div>
+      <div class="form-field"><label>Faturamento (R$)</label><input type="number" step="0.01" id="f-cu-fat" placeholder="ex: 670000.00"/></div>
+      <div class="form-field"><label>Descontos (R$)</label><input type="number" step="0.01" id="f-cu-desc" placeholder="ex: 5000.00"/></div>
+      <div class="form-field"><label>Gastos Transportadora (R$)</label><input type="number" step="0.01" id="f-cu-trans" placeholder="ex: 15000.00"/></div>
+      <div class="form-field"><label>Gastos com AT (R$)</label><input type="number" step="0.01" id="f-cu-ats" placeholder="ex: 14000.00"/></div>
+    </div>
+    <button class="form-submit-btn" id="f-cu-submit">Salvar mês</button>
+    <span id="f-cu-status" class="form-status"></span>
+  </div>`;
+}
+function wireFormCustos() {
+  const btn = document.getElementById('f-cu-submit'); if (!btn) return;
+  btn.addEventListener('click', () => {
+    const mes = document.getElementById('f-cu-mes').value;
+    const faturamento = parseFloat(document.getElementById('f-cu-fat').value);
+    const desconto = parseFloat(document.getElementById('f-cu-desc').value);
+    const transportadora = parseFloat(document.getElementById('f-cu-trans').value);
+    const ats = parseFloat(document.getElementById('f-cu-ats').value);
+    if (!mes || isNaN(faturamento) || isNaN(desconto) || isNaN(transportadora) || isNaN(ats)) {
+      alert('Preencha todos os campos corretamente.'); return;
+    }
+    const chamadosDoMes = (mockData.chamados.find(c=>c.mes===mes)?.chamados) || 0;
+    upsertByMes(mockData.custos, mes, { mes, chamados: chamadosDoMes, faturamento, desconto, transportadora, ats });
+    document.getElementById('f-cu-status').textContent = 'Salvo ✓';
+    commitAndSave();
+  });
+}
+
+function attachTabFormEvents() {
+  if (!isEditor()) return;
+  switch (state.aba) {
+    case "chamados": wireFormChamados(); break;
+    case "modelos": wireFormModelos(); break;
+    case "sintomas": wireFormSintomas(); break;
+    case "desligamentos": wireFormDesligamentos(); break;
+    case "trocas": wireFormTrocas(); break;
+    case "custos": wireFormCustos(); break;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // MINI AREA CHART (SVG)
@@ -388,19 +653,19 @@ function sectionTitle(txt) { return `<h3 class="section-title">${esc(txt)}</h3>`
 function miniAreaCard({ title, icon, color, dataKey, idSuffix }) {
   const data = mockData.chamados.map((c,i) => ({
     mes: c.mes,
-    val: mockData.custos[i][dataKey] !== undefined ? mockData.custos[i][dataKey] : mockData.chamados[i].noSLA
+    val: mockData.custos[i] && mockData.custos[i][dataKey] !== undefined ? mockData.custos[i][dataKey] : mockData.chamados[i].noSLA
   }));
   const W = 280, H = 150, PAD = 24;
   const maxV = Math.max(...data.map(d=>d.val), 1);
   const minV = 0;
-  const stepX = (W - PAD*1.2) / (data.length - 1);
+  const stepX = data.length>1 ? (W - PAD*1.2) / (data.length - 1) : 0;
   const pts = data.map((d,i) => {
     const x = PAD*0.6 + i*stepX;
     const y = H - 20 - ((d.val - minV)/(maxV-minV || 1)) * (H - 40);
     return { x, y, ...d };
   });
   const linePath = pts.map((p,i) => (i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`)).join(" ");
-  const areaPath = `${linePath} L${pts[pts.length-1].x},${H-20} L${pts[0].x},${H-20} Z`;
+  const areaPath = pts.length ? `${linePath} L${pts[pts.length-1].x},${H-20} L${pts[0].x},${H-20} Z` : "";
   const gradId = `grad-${idSuffix}`;
 
   const circles = pts.map((p,i) => `<circle data-idx="${i}" data-chart="${idSuffix}" cx="${p.x}" cy="${p.y}" r="5" fill="${color}" fill-opacity="0" stroke="none" style="cursor:pointer"></circle>
@@ -432,7 +697,7 @@ function wireMiniChartTooltips(formatValueFns) {
   document.querySelectorAll('circle[data-chart]').forEach(circle => {
     const chartId = circle.getAttribute('data-chart');
     const idx = parseInt(circle.getAttribute('data-idx'),10);
-    circle.addEventListener('mouseenter', (e) => {
+    circle.addEventListener('mouseenter', () => {
       const host = document.querySelector(`[data-tooltip-host="${chartId}"]`);
       if (!host) return;
       const mesKey = mockData.chamados[idx].mes;
@@ -441,24 +706,18 @@ function wireMiniChartTooltips(formatValueFns) {
       const sintoma = mockData.sintomas[mesKey]?.[0]?.sintoma ?? "-";
       const modelo = mockData.modelos[mesKey]?.[0]?.modelo ?? "-";
       const chamadosV = mockData.chamados[idx]?.chamados;
-      const trocasV = mockData.substituicoes[idx]?.trocas;
+      const trocasV = mockData.substituicoes.find(t=>t.mes===mesKey)?.trocas ?? "-";
       let tip = host.querySelector('.tooltip-box');
-      if (!tip) {
-        tip = document.createElement('div');
-        tip.className = 'tooltip-box';
-        host.appendChild(tip);
-      }
+      if (!tip) { tip = document.createElement('div'); tip.className = 'tooltip-box'; host.appendChild(tip); }
       tip.innerHTML = `<p style="font-weight:700;margin-bottom:4px">${mesKey}</p>
         <p style="color:${dataKeyInfo.color}">${dataKeyInfo.formatValue(val)}</p>
         <p style="color:var(--text-muted);font-size:11px">⚡ Sintoma: <b>${esc(sintoma)}</b></p>
         <p style="color:var(--text-muted);font-size:11px">🚲 Modelo: <b>${esc(modelo)}</b></p>
         <p style="color:var(--text-muted);font-size:11px">Chamados: <b>${chamadosV}</b></p>
         <p style="color:var(--text-muted);font-size:11px">Trocas: <b>${trocasV}</b></p>`;
-      tip.style.display = 'block';
-      tip.style.left = '10px';
-      tip.style.top = '36px';
+      tip.style.display = 'block'; tip.style.left = '10px'; tip.style.top = '36px';
     });
-    circle.addEventListener('mouseleave', (e) => {
+    circle.addEventListener('mouseleave', () => {
       const host = document.querySelector(`[data-tooltip-host="${chartId}"]`);
       const tip = host?.querySelector('.tooltip-box');
       if (tip) tip.style.display = 'none';
@@ -486,7 +745,7 @@ function tabVisaoGeral(mesFiltro) {
       </div>
     </div>
 
-    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:6px">Evolução de Custos Operacionais — Jan a Mai</p>
+    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:6px">Evolução de Custos Operacionais</p>
     <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Passe o mouse sobre os pontos do gráfico para ver o principal sintoma e modelo recorrente daquele mês.</p>
     <div class="mini-row">
       ${miniAreaCard({ title:"Descontos", icon:"🏷️", color:"#ef4444", dataKey:"desconto", idSuffix:"desconto" })}
@@ -521,7 +780,7 @@ function tabVisaoGeral(mesFiltro) {
 
   const idx = chamados.findIndex(c => c.mes === mesFiltro);
   const c = chamados[idx];
-  const desl = mockData.desligamentos[idx];
+  const desl = mockData.desligamentos.find(d=>d.mes===mesFiltro) || { desligamentos:0, perc:0 };
   const modelos = mockData.modelos[mesFiltro] || [];
   const sintomas = mockData.sintomas[mesFiltro] || [];
 
@@ -543,7 +802,7 @@ function tabVisaoGeral(mesFiltro) {
     ${kpiCard({ label:"Total de Chamados", value:fmt(c.chamados), color:"#5b7cf5" })}
     ${kpiCard({ label:"Encerrados no Mês", value:fmt(c.atendidos), sub:fmtPct(c.percAtendidos)+" do total", color:"#22c55e" })}
     ${kpiCard({ label:"SLA Cumprido", value:fmtPct(c.percSLA), color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444" })}
-    ${kpiCard({ label:"Desligamentos", value:fmt(desl.desligamentos), sub:fmtPct(desl.perc)+" da frota", color:"#f97316" })}
+    ${kpiCard({ label:"Desligamentos", value:fmt(desl.desligamentos), sub:fmtPct(desl.perc)+" dos chamados", color:"#f97316" })}
   </div>
   <div class="grid-2">
     <div>${sectionTitle("Top 5 Modelos mais acionados")}${rankList(modelos,"modelo","#5b7cf5")}</div>
@@ -567,21 +826,21 @@ function chamadosTable(data) {
     </tr>`).join("")}</tbody>
   </table>`;
 }
-
 function tabChamados(mesFiltro) {
   const data = mesFiltro==="Todos" ? mockData.chamados : mockData.chamados.filter(c=>c.mes===mesFiltro);
   const maxC = Math.max(...mockData.chamados.map(c=>c.chamados));
   const maxA = Math.max(...mockData.chamados.map(c=>c.atendidos));
+  const formHtml = isEditor() ? formChamados() : "";
 
   if (mesFiltro === "Todos") {
-    return `<div class="card">
+    return formHtml + `<div class="card">
       <div class="block-divider"><p class="block-label">TOTAL DE CHAMADOS</p>${data.map(c=>hbar({label:c.mes,value:c.chamados,max:maxC,color:"#5b7cf5",valueLabel:String(c.chamados),height:20,labelWidth:28})).join("")}</div>
       <div class="block-divider"><p class="block-label">ATENDIDOS NO MÊS</p>${data.map(c=>hbar({label:c.mes,value:c.atendidos,max:maxA,color:"#22c55e",valueLabel:String(c.atendidos),height:20,labelWidth:28})).join("")}</div>
       <div><p class="block-label">SLA CUMPRIDO (%)</p>${data.map(c=>hbar({label:c.mes,value:c.percSLA*100,max:100,color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round(c.percSLA*100)}%`,height:20,labelWidth:28})).join("")}</div>
     </div>${chamadosTable(data)}`;
   }
 
-  return `<div class="kpi-row">
+  return formHtml + `<div class="kpi-row">
     ${data.map(row => kpiCard({label:"Chamados",value:fmt(row.chamados),color:"#5b7cf5"})
       + kpiCard({label:"Atendidos",value:fmt(row.atendidos),sub:fmtPct(row.percAtendidos),color:"#22c55e"})
       + kpiCard({label:"SLA",value:fmtPct(row.percSLA),color:row.percSLA>=0.8?"#22c55e":row.percSLA>=0.7?"#f97316":"#ef4444"})
@@ -595,33 +854,34 @@ function tabChamados(mesFiltro) {
 function tabModelos(mesFiltro) {
   const colors = ["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
   const meses = mesFiltro==="Todos" ? Object.keys(mockData.modelos) : [mesFiltro];
+  const formHtml = isEditor() ? formModelos() : "";
 
   if (mesFiltro === "Todos") {
     const modelTotals = {};
     meses.forEach(m => mockData.modelos[m]?.forEach(r => { modelTotals[r.modelo] = (modelTotals[r.modelo]||0)+r.qtd; }));
-    const maxTotal = Math.max(...Object.values(modelTotals));
-    const allModelos = ["S9","S8","I2","S10","BR8"];
+    const totalsArr = Object.entries(modelTotals);
+    const maxTotal = Math.max(...totalsArr.map(([,v])=>v), 1);
 
-    let html = `<div class="card">
-      <p class="block-label" style="margin-bottom:16px">TOTAL DE CHAMADOS POR MODELO (ACUMULADO JAN–MAI)</p>
-      ${allModelos.map((modelo,i) => hbar({label:modelo,value:modelTotals[modelo]||0,max:maxTotal,color:colors[i],valueLabel:String(modelTotals[modelo]||0),height:22,labelWidth:28})).join("")}
+    let html = formHtml + `<div class="card">
+      <p class="block-label" style="margin-bottom:16px">TOTAL DE CHAMADOS POR MODELO (ACUMULADO)</p>
+      ${totalsArr.map(([modelo,qtd],i) => hbar({label:modelo,value:qtd,max:maxTotal,color:colors[i%colors.length],valueLabel:String(qtd),height:22,labelWidth:40})).join("")}
     </div>`;
     meses.forEach(m => {
       const rows = mockData.modelos[m] || [];
-      const maxQ = Math.max(...rows.map(r=>r.qtd));
+      const maxQ = Math.max(...rows.map(r=>r.qtd), 1);
       html += `<div class="card">
         <p style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:12px">${MES_FULL[m]} — Top 5 Modelos</p>
-        ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:18,labelWidth:28})).join("")}
+        ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:18,labelWidth:40})).join("")}
       </div>`;
     });
     return html;
   }
 
   const rows = mockData.modelos[mesFiltro] || [];
-  const maxQ = Math.max(...rows.map(r=>r.qtd));
-  return `<div class="card">
+  const maxQ = Math.max(...rows.map(r=>r.qtd), 1);
+  return formHtml + `<div class="card">
     <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro]} — Top 5 Modelos</p>
-    ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22,labelWidth:28})).join("")}
+    ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22,labelWidth:40})).join("")}
   </div>`;
 }
 
@@ -631,24 +891,25 @@ function tabModelos(mesFiltro) {
 function tabSintomas(mesFiltro) {
   const colors = ["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
   const meses = mesFiltro==="Todos" ? Object.keys(mockData.sintomas) : [mesFiltro];
+  const formHtml = isEditor() ? formSintomas() : "";
 
   if (mesFiltro === "Todos") {
     const sintomaMap = {};
     meses.forEach(m => mockData.sintomas[m]?.forEach(s => { sintomaMap[s.sintoma]=(sintomaMap[s.sintoma]||0)+s.qtd; }));
     const sorted = Object.entries(sintomaMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
     const accumRows = sorted.map(([sintoma,qtd],i) => ({ label:sintoma, value:qtd, valueLabel:String(qtd), color:colors[i%colors.length] }));
-    const maxVal = Math.max(...accumRows.map(r=>r.value));
-    const lw = autoLabelWidth(accumRows.map(r=>r.label));
+    const maxVal = Math.max(...accumRows.map(r=>r.value), 1);
+    const lw = accumRows.length ? autoLabelWidth(accumRows.map(r=>r.label)) : 40;
 
-    let html = `<div class="card">
-      <p class="block-label" style="margin-bottom:16px">SINTOMAS MAIS FREQUENTES (ACUMULADO JAN–MAI)</p>
+    let html = formHtml + `<div class="card">
+      <p class="block-label" style="margin-bottom:16px">SINTOMAS MAIS FREQUENTES (ACUMULADO)</p>
       ${accumRows.map(r => hbar({label:r.label,value:r.value,max:maxVal,color:r.color,valueLabel:r.valueLabel,height:20,labelWidth:lw})).join("")}
     </div>`;
 
     meses.forEach(m => {
       const rows = (mockData.sintomas[m]||[]).map((s,i) => ({ label:s.sintoma, value:s.qtd, valueLabel:`${s.qtd} (${s.perc}%)`, color:colors[i] }));
-      const maxV = Math.max(...rows.map(r=>r.value));
-      const labelW = autoLabelWidth(rows.map(r=>r.label));
+      const maxV = Math.max(...rows.map(r=>r.value), 1);
+      const labelW = rows.length ? autoLabelWidth(rows.map(r=>r.label)) : 40;
       html += `<div class="card">
         <p style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:12px">${MES_FULL[m]} — Top 5 Sintomas</p>
         ${rows.map(r => hbar({label:r.label,value:r.value,max:maxV,color:r.color,valueLabel:r.valueLabel,height:18,labelWidth:labelW})).join("")}
@@ -658,9 +919,9 @@ function tabSintomas(mesFiltro) {
   }
 
   const rows = mockData.sintomas[mesFiltro] || [];
-  const maxQ = Math.max(...rows.map(r=>r.qtd));
-  const lw = autoLabelWidth(rows.map(r=>r.sintoma));
-  return `<div class="card">
+  const maxQ = Math.max(...rows.map(r=>r.qtd), 1);
+  const lw = rows.length ? autoLabelWidth(rows.map(r=>r.sintoma)) : 40;
+  return formHtml + `<div class="card">
     <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro]} — Top 5 Sintomas</p>
     ${rows.map((s,i) => hbar({label:s.sintoma,value:s.qtd,max:maxQ,color:colors[i],valueLabel:`${s.qtd} (${s.perc}%)`,height:22,labelWidth:lw})).join("")}
   </div>`;
@@ -672,12 +933,13 @@ function tabSintomas(mesFiltro) {
 function tabDesligamentos(mesFiltro) {
   const allData = mockData.desligamentos;
   const data = mesFiltro==="Todos" ? allData : allData.filter(d=>d.mes===mesFiltro);
-  const maxD = Math.max(...allData.map(d=>d.desligamentos));
-  const percDosChamados = d => { const c = mockData.chamados.find(c=>c.mes===d.mes); return c ? d.desligamentos/c.chamados : 0; };
-  const maxPercChamados = Math.max(...allData.map(d=>percDosChamados(d)*100));
+  const maxD = Math.max(...allData.map(d=>d.desligamentos), 1);
+  const percDosChamados = d => { const c = mockData.chamados.find(c=>c.mes===d.mes); return c && c.chamados>0 ? d.desligamentos/c.chamados : 0; };
+  const maxPercChamados = Math.max(...allData.map(d=>percDosChamados(d)*100), 1);
+  const formHtml = isEditor() ? formDesligamentos() : "";
 
   if (mesFiltro === "Todos") {
-    return `<div class="card">
+    return formHtml + `<div class="card">
       <div class="block-divider"><p class="block-label">DESLIGAMENTOS POR MÊS</p>${data.map(d=>hbar({label:d.mes,value:d.desligamentos,max:maxD,color:"#ef4444",valueLabel:String(d.desligamentos),height:20,labelWidth:28})).join("")}</div>
       <p class="block-label">% DOS CHAMADOS</p>
       ${data.map(d => { const pct=percDosChamados(d); return hbar({label:d.mes,value:pct*100,max:maxPercChamados,color:"#f97316",valueLabel:fmtPct(pct),height:20,labelWidth:28}); }).join("")}
@@ -687,11 +949,11 @@ function tabDesligamentos(mesFiltro) {
     </div>`;
   }
 
-  return `<div class="kpi-row">
+  return formHtml + `<div class="kpi-row">
     ${data.map(d => { const pct=percDosChamados(d); return kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.desligamentos),sub:`${fmtPct(pct)} dos chamados`,color:"#ef4444"}); }).join("")}
   </div>
   <div class="card" style="margin-bottom:0">
-    <p class="block-label" style="margin-bottom:16px">HISTÓRICO — DESLIGAMENTOS (JAN–MAI)</p>
+    <p class="block-label" style="margin-bottom:16px">HISTÓRICO — DESLIGAMENTOS</p>
     <div class="block-divider">
       <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;font-weight:500">Quantidade de desligamentos</p>
       ${allData.map(d => hbar({label:d.mes,value:d.desligamentos,max:maxD,color:d.mes===mesFiltro?"#ef4444":"#f97316",valueLabel:String(d.desligamentos),height:20,labelWidth:28})).join("")}
@@ -709,25 +971,26 @@ function tabDesligamentos(mesFiltro) {
 function tabTrocas(mesFiltro) {
   const allData = mockData.substituicoes;
   const data = mesFiltro==="Todos" ? allData : allData.filter(d=>d.mes===mesFiltro);
-  const maxT = Math.max(...allData.map(s=>s.trocas));
-  const maxPerc = Math.max(...allData.map(s=>s.perc*100));
+  const maxT = Math.max(...allData.map(s=>s.trocas), 1);
+  const maxPerc = Math.max(...allData.map(s=>s.perc*100), 1);
+  const formHtml = isEditor() ? formTrocas() : "";
 
   if (mesFiltro === "Todos") {
-    return `<div class="card">
+    return formHtml + `<div class="card">
       <p style="font-weight:700;font-size:15px;color:var(--text-primary);margin-bottom:18px">Trocas de Equipamentos — Comparativo Mensal</p>
       <div class="block-divider"><p class="block-label">DICICLOS SUBSTITUÍDOS</p>${data.map(d=>hbar({label:d.mes,value:d.trocas,max:maxT,color:"#22c55e",valueLabel:String(d.trocas),height:20,labelWidth:28})).join("")}</div>
-      <div><p class="block-label">% SOBRE TOTAL DE CHAMADOS</p>${data.map(d=>hbar({label:d.mes,value:d.perc*100,max:25,color:"#8b5cf6",valueLabel:`${Math.round(d.perc*100)}%`,height:20,labelWidth:28})).join("")}</div>
+      <div><p class="block-label">% SOBRE TOTAL DE CHAMADOS</p>${data.map(d=>hbar({label:d.mes,value:d.perc*100,max:Math.max(maxPerc,25),color:"#8b5cf6",valueLabel:`${Math.round(d.perc*100)}%`,height:20,labelWidth:28})).join("")}</div>
     </div>
     <div class="kpi-row" style="margin-bottom:0">
       ${data.map(d => kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.trocas),sub:fmtPct(d.perc)+" dos chamados",color:"#8b5cf6"})).join("")}
     </div>`;
   }
 
-  return `<div class="kpi-row">
+  return formHtml + `<div class="kpi-row">
     ${data.map(d => kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.trocas),sub:fmtPct(d.perc)+" dos chamados",color:"#8b5cf6"})).join("")}
   </div>
   <div class="card" style="margin-bottom:0">
-    <p class="block-label" style="margin-bottom:16px">HISTÓRICO — TROCAS DE EQUIPAMENTOS (JAN–MAI)</p>
+    <p class="block-label" style="margin-bottom:16px">HISTÓRICO — TROCAS DE EQUIPAMENTOS</p>
     <div class="block-divider">
       <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;font-weight:500">Diciclos substituídos</p>
       ${allData.map(d => hbar({label:d.mes,value:d.trocas,max:maxT,color:d.mes===mesFiltro?"#22c55e":"#8b5cf6",valueLabel:String(d.trocas),height:20,labelWidth:28})).join("")}
@@ -755,10 +1018,9 @@ function costTable(data) {
     </tr>`).join("")}</tbody>
   </table>`;
 }
-
 function costBlock({ title, icon, color, dataKey, data, justificativa }) {
   const values = data.map(d=>d[dataKey]);
-  const maxVal = Math.max(...values);
+  const maxVal = Math.max(...values, 1);
   const total = values.reduce((a,b)=>a+b,0);
   return `<div class="card">
     <p style="font-size:12px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.07em;margin:0 0 16px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">${icon}</span>${esc(title)}</p>
@@ -769,12 +1031,13 @@ function costBlock({ title, icon, color, dataKey, data, justificativa }) {
     ${justificativa?`<div style="border-left:3px solid ${color};padding-left:12px;margin-top:4px"><p style="font-size:12px;color:var(--text-muted);margin:0;line-height:1.6">${esc(justificativa)}</p></div>`:""}
   </div>`;
 }
-
 function tabCustos(mesFiltro) {
   const data = mesFiltro==="Todos" ? mockData.custos : mockData.custos.filter(c=>c.mes===mesFiltro);
+  const formHtml = isEditor() ? formCustos() : "";
 
   if (mesFiltro === "Todos") {
-    return costBlock({ title:"Descontos", icon:"🏷️", color:"#ef4444", dataKey:"desconto", data, justificativa:"Em março houve descontos aplicados devido a ausência de veículos e insumos para atendimento rápido, causada por atraso na importação. Em Abril e Maio, os descontos aumentaram em razão do caso Multiplan/Barra Shopping." })
+    return formHtml
+    + costBlock({ title:"Descontos", icon:"🏷️", color:"#ef4444", dataKey:"desconto", data, justificativa:"Em março houve descontos aplicados devido a ausência de veículos e insumos para atendimento rápido, causada por atraso na importação. Em Abril e Maio, os descontos aumentaram em razão do caso Multiplan/Barra Shopping." })
     + costBlock({ title:"Gastos Transportadora", icon:"🚚", color:"#f59e0b", dataKey:"transportadora", data, justificativa:"Em Janeiro, o custo de transportadoras subiu devido aos atrasos de final de ano na logística e período de recesso de alguns ATs. Em Abril, refletiu manobras de postergação de boletos de Fev/Mar, custos da missão Multiplan e envios do Barra Shopping. Em Maio, o aumento decorreu do maior volume de trocas de veículos e de cancelamentos/retiradas." })
     + costBlock({ title:"Gastos com AT", icon:"🔧", color:"#8b5cf6", dataKey:"ats", data })
     + `<div>${sectionTitle("Comparativo Detalhado por Mês")}${costTable(data)}</div>`;
@@ -784,7 +1047,7 @@ function tabCustos(mesFiltro) {
   const totTrans = data.reduce((a,b)=>a+b.transportadora,0);
   const totAts = data.reduce((a,b)=>a+b.ats,0);
   const totFat = data[0]?.faturamento || 0;
-  return `<div class="kpi-row">
+  return formHtml + `<div class="kpi-row">
     ${kpiCard({label:"Faturamento",value:fmtR(totFat),color:"#22c55e"})}
     ${kpiCard({label:"Descontos",value:fmtR(totDesc),color:"#ef4444"})}
     ${kpiCard({label:"Transportadora",value:fmtR(totTrans),color:"#f59e0b"})}
@@ -795,33 +1058,53 @@ function tabCustos(mesFiltro) {
 // ─────────────────────────────────────────────────────────────────────────
 // TAB: PONTOS DE ATENÇÃO
 // ─────────────────────────────────────────────────────────────────────────
+function dynamicRiskSummary() {
+  const ch = mockData.chamados;
+  if (!ch.length) return "";
+  const sorted = [...ch].sort((a,b)=>ALL_MESES_ORDER.indexOf(a.mes)-ALL_MESES_ORDER.indexOf(b.mes));
+  const last = sorted[sorted.length-1];
+  const desl = mockData.desligamentos.find(d=>d.mes===last.mes);
+  const troc = mockData.substituicoes.find(d=>d.mes===last.mes);
+  const items = [];
+  if (last.percSLA < 0.7) items.push(`SLA de ${MES_FULL[last.mes]} está em ${(last.percSLA*100).toFixed(0)}% — abaixo da meta de 80%. Atenção imediata recomendada.`);
+  else if (last.percSLA >= 0.85) items.push(`SLA de ${MES_FULL[last.mes]} está saudável, em ${(last.percSLA*100).toFixed(0)}%.`);
+  if (desl && desl.perc > 0.1) items.push(`Desligamentos de ${MES_FULL[last.mes]} representam ${(desl.perc*100).toFixed(0)}% dos chamados — acima do padrão histórico.`);
+  if (troc && troc.perc > 0.18) items.push(`Trocas de equipamentos em ${MES_FULL[last.mes]} subiram para ${(troc.perc*100).toFixed(0)}% dos chamados.`);
+  const topSintoma = mockData.sintomas[last.mes]?.[0];
+  if (topSintoma) items.push(`Principal sintoma de ${MES_FULL[last.mes]}: ${topSintoma.sintoma} (${topSintoma.perc}% dos chamados do mês).`);
+  if (!items.length) return "";
+  return `<div class="card" style="border:2px solid #4f63f7;margin-bottom:24px">
+    <p class="block-label" style="margin-bottom:10px">🆕 ATUALIZAÇÃO AUTOMÁTICA — ${(MES_FULL[last.mes]||"").toUpperCase()}</p>
+    ${items.map(t=>`<p class="diag-text" style="margin-bottom:6px">• ${esc(t)}</p>`).join("")}
+  </div>`;
+}
 function tabAtencao() {
   const riscos = [
-    { nivel:"alto",cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
+    { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
       { ref:"SLA em Abril — 56%",impacto:"Quebra de contrato, insatisfação de clientes estratégicos (Multiplan/Barra Shopping). Penalidades financeiras e risco de não renovação.",solucao:"Implementar célula de atendimento dedicada para contas estratégicas; revisar protocolo de escalonamento com resposta em 2h para chamados críticos." },
       { ref:"Custo de Transportadora — Janeiro (R$27.416) e Abril (R$19.294)",impacto:"Erosão de margem operacional em meses já pressionados por descontos e volume de chamados acima da média.",solucao:"Negociar contratos de tabela fixa mensal com transportadoras parceiras; avaliar modal próprio para regiões de alta concentração." },
       { ref:"Desligamentos — Abril e Maio (18 cada)",impacto:"Perda de receita recorrente e possível migração de base para concorrentes.",solucao:"Auditoria de motivo por desligamento; criação de programa de retenção proativo para contratos com mais de 12 meses de campo." },
     ]},
-    { nivel:"medio",cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
+    { cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
       { ref:"Pneus como sintoma #1 em todos os meses",impacto:"Alto volume de chamados previsíveis e evitáveis que consomem capacidade operacional.",solucao:"Programa de manutenção preventiva trimestral de pneus por contrato. Meta: redução de 30% em chamados no 2º semestre." },
       { ref:"Alta de chamados em Março e Abril (183 e 213)",impacto:"Pressão sobre equipe de atendimento e risco de atrasos no SLA.",solucao:"Identificar sazonalidade e reforçar equipe preventivamente nos meses de pico (Mar–Abr)." },
       { ref:"Taxa de troca crescente (16% → 20% em Maio)",impacto:"Aumento de custo logístico e possível indicação de deterioração de frota.",solucao:"Mapear equipamentos com maior taxa de troca; avaliar substituição de frota envelhecida." },
     ]},
-    { nivel:"baixo",cor:"#16a34a",bg:"#f0fdf4",bord:"#bbf7d0",titulo:"🟢 Risco Baixo — Monitoramento Contínuo",itens:[
+    { cor:"#16a34a",bg:"#f0fdf4",bord:"#bbf7d0",titulo:"🟢 Risco Baixo — Monitoramento Contínuo",itens:[
       { ref:"Custo ATS equilibrado (~R$13K–R$18K/mês)",impacto:"Custo controlado, mas com leve tendência de alta em Maio.",solucao:"Acompanhar variação; identificar se alta em Maio é pontual ou tendência." },
       { ref:"Descontos zerados em Fevereiro",impacto:"Indica operação sem intercorrências — modelo a ser replicado.",solucao:"Documentar práticas de Fevereiro e aplicar como benchmark operacional." },
     ]},
   ];
 
-  return `${sectionTitle("Matriz de Risco Operacional")}
-  ${riscos.map(({cor,bg,bord,titulo,itens}) => `<div style="margin-bottom:24px">
+  return dynamicRiskSummary() + sectionTitle("Matriz de Risco Operacional")
+  + riscos.map(({cor,bg,bord,titulo,itens}) => `<div style="margin-bottom:24px">
     <p style="font-weight:700;font-size:14px;color:${cor};margin-bottom:12px">${titulo}</p>
     ${itens.map(item => `<div class="risk-box" style="background:${bg};border:1px solid ${bord}">
       <p class="risk-ref" style="color:${cor}">ℹ️ ${esc(item.ref)}</p>
       <p class="risk-text"><strong>Impacto:</strong> ${esc(item.impacto)}</p>
       <p class="risk-text" style="margin:0"><strong>Plano de ação:</strong> ${esc(item.solucao)}</p>
     </div>`).join("")}
-  </div>`).join("")}`;
+  </div>`).join("");
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -845,25 +1128,24 @@ function renderSidebar() {
           <div class="toggle-dot" style="left:${state.dark?'16px':'3px'}"></div>
         </div>
       </button>
-      ${currentUser ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding:0 2px">Logado como<br><strong style="color:var(--text-primary)">${esc(currentUser.email)}</strong></div>
+      ${currentUser ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding:0 2px">Logado como<br><strong style="color:var(--text-primary)">${esc(currentUser.email)}</strong>${isEditor()?'<br><span style="color:#22c55e">✓ Permissão de edição</span>':'<br><span style="color:#f97316">Somente visualização</span>'}</div>
       <button class="logout-btn" onclick="logout()">🚪 Sair</button>` : ""}
     </div>
   </div>`;
 }
-
 function renderHeader() {
   const currentAba = NAV.find(n=>n.id===state.aba);
+  const meses = getMesesFiltro();
   return `<div class="header">
     <div>
       <p class="header-title">${currentAba?.label || ''}</p>
-      <p class="header-sub">${state.mes==="Todos"?"Jan – Mai 2025 • Visão acumulada":MES_FULL[state.mes]+" 2025"}</p>
+      <p class="header-sub">${state.mes==="Todos"?"Visão acumulada":MES_FULL[state.mes]}</p>
     </div>
     <div class="filters">
-      ${MESES.map(m => `<button class="filter-btn ${state.mes===m?'active':''}" data-mes="${m}">${m}</button>`).join("")}
+      ${meses.map(m => `<button class="filter-btn ${state.mes===m?'active':''}" data-mes="${m}">${m}</button>`).join("")}
     </div>
   </div>`;
 }
-
 function renderContent() {
   switch(state.aba) {
     case "visao": return tabVisaoGeral(state.mes);
@@ -877,10 +1159,10 @@ function renderContent() {
     default: return "";
   }
 }
-
 function render() {
   applyTheme();
   const root = document.getElementById('root');
+  if (!getMesesFiltro().includes(state.mes)) state.mes = "Todos";
   root.innerHTML = `<div class="app">
     ${renderSidebar()}
     <div class="main">
@@ -889,17 +1171,17 @@ function render() {
     </div>
   </div>`;
   attachEvents();
+  attachTabFormEvents();
 
-  if (state.aba === "visao") {
+  if (state.aba === "visao" && state.mes === "Todos") {
     wireMiniChartTooltips({
-      desconto: { color:"#ef4444", formatValue:fmtR, getValue: idx => mockData.custos[idx].desconto },
-      transportadora: { color:"#f59e0b", formatValue:fmtR, getValue: idx => mockData.custos[idx].transportadora },
-      ats: { color:"#8b5cf6", formatValue:fmtR, getValue: idx => mockData.custos[idx].ats },
-      slaCount: { color:"#22c55e", formatValue: v => `${fmt(v)} chamados`, getValue: idx => mockData.chamados[idx].noSLA },
+      desconto: { color:"#ef4444", formatValue:fmtR, getValue: idx => mockData.custos[idx]?.desconto },
+      transportadora: { color:"#f59e0b", formatValue:fmtR, getValue: idx => mockData.custos[idx]?.transportadora },
+      ats: { color:"#8b5cf6", formatValue:fmtR, getValue: idx => mockData.custos[idx]?.ats },
+      slaCount: { color:"#22c55e", formatValue: v => `${fmt(v)} chamados`, getValue: idx => mockData.chamados[idx]?.noSLA },
     });
   }
 }
-
 function applyTheme() {
   const dark = state.dark;
   const theme = dark ? {
@@ -916,7 +1198,6 @@ function applyTheme() {
   const root = document.documentElement;
   Object.entries(theme).forEach(([k,v]) => root.style.setProperty(k,v));
 }
-
 function attachEvents() {
   document.querySelectorAll('[data-nav]').forEach(btn => {
     btn.addEventListener('click', () => { state.aba = btn.getAttribute('data-nav'); render(); });
@@ -932,6 +1213,3 @@ setupAuthGate();
 </script>
 </body>
 </html>
-```
-
-**Importante:** copie tudo, do `<!DOCTYPE html>` até o `</html>` no final — substitua **o arquivo inteiro** no GitHub, não apenas um trecho. Depois do commit, teste em aba anônima.
