@@ -1,3 +1,4 @@
+HTML
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -151,7 +152,7 @@ let mockData = {
     Fev: [{ pos:"1º",modelo:"S8",qtd:26,perc:17},{pos:"2º",modelo:"I2",qtd:25,perc:16},{pos:"3º",modelo:"S9",qtd:23,perc:15},{pos:"4º",modelo:"S10",qtd:15,perc:10},{pos:"5º",modelo:"BR8",qtd:11,perc:7}],
     Mar: [{ pos:"1º",modelo:"S9",qtd:46,perc:25},{pos:"2º",modelo:"S8",qtd:28,perc:15},{pos:"3º",modelo:"I2",qtd:24,perc:13},{pos:"4º",modelo:"BR8",qtd:22,perc:12},{pos:"5º",modelo:"S10",qtd:18,perc:10}],
     Abr: [{ pos:"1º",modelo:"S9",qtd:45,perc:21},{pos:"2º",modelo:"S8",qtd:35,perc:16},{pos:"3º",modelo:"I2",qtd:23,perc:11},{pos:"4º",modelo:"S10",qtd:19,perc:9},{pos:"5º",modelo:"BR8",qtd:16,perc:7}],
-    Mai: [{ pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",qtd:22,perc:13},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
+    Mai: [{ pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",qtd:22,whites:13},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
   },
   sintomas: {
     Jan: [{ pos:"1º",sintoma:"Pneus",qtd:47,perc:26},{pos:"2º",sintoma:"Carregadores",qtd:35,perc:19},{pos:"3º",sintoma:"Inclinando/girando",qtd:14,perc:8},{pos:"4º",sintoma:"Torre/postura",qtd:14,perc:8},{pos:"5º",sintoma:"Não carrega/bateria",qtd:13,perc:7}],
@@ -203,7 +204,6 @@ const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 function getMesesFiltro() {
   const setMeses = new Set();
   
-  // Só considera que o mês tem dados se ele possuir valores válidos maiores que zero ou textos salvos
   mockData.chamados.forEach(c => { if(c.chamados > 0 || c.atendidos > 0) setMeses.add(c.mes); });
   mockData.custos.forEach(c => { if((c.faturamento || c.desconto || c.transportadora || c.ats) || c.obsDesconto || c.obsTransportadora) setMeses.add(c.mes); });
   mockData.desligamentos.forEach(d => { if(d.desligamentos > 0) setMeses.add(d.mes); });
@@ -219,7 +219,6 @@ function getMesesFiltro() {
 function normalizarBancoDeDados() {
   const mesesComDados = getMesesFiltro().filter(m => m !== "Todos");
   
-  // Garante que, se um mês foi ativado em uma aba, ele exista nas outras de forma limpa, sem inventar meses futuros vazios
   mesesComDados.forEach(m => {
     if (!mockData.chamados.some(c => c.mes === m)) mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
     if (!mockData.custos.some(c => c.mes === m)) mockData.custos.push({ mes: m, chamados: 0, faturamento: 0, desconto: 0, transportadora: 0, ats: 0, obsDesconto:"", obsTransportadora:"", obsAts:"" });
@@ -276,8 +275,17 @@ try {
 }
 
 let currentUser = null;
+
+// Só quem tem o email exato da Vanessa tem superpoderes de edição
 function isEditor() {
   return currentUser && currentUser.email && currentUser.email.toLowerCase() === ALLOWED_EMAIL;
+}
+
+// Qualquer email @brmobility.com.br (ou a própria Vanessa) tem permissão de leitura
+function isViewer() {
+  if (!currentUser || !currentUser.email) return false;
+  const email = currentUser.email.toLowerCase();
+  return email === ALLOWED_EMAIL || email.endsWith("@brmobility.com.br");
 }
 
 let unsubscribeSnapshot = null;
@@ -408,7 +416,15 @@ function setupAuthGate() {
   auth.onAuthStateChanged(user => {
     if (user) {
       currentUser = user;
-      startRealtimeSync();
+      // Validação do domínio corporativo ou admin fixo
+      if (isViewer()) {
+        startRealtimeSync();
+      } else {
+        auth.signOut();
+        currentUser = null;
+        if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+        renderLoginForm("Acesso negado. Domínio de e-mail não autorizado.");
+      }
     } else {
       currentUser = null;
       if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
