@@ -151,7 +151,7 @@ let mockData = {
     Fev: [{ pos:"1º",modelo:"S8",qtd:26,perc:17},{pos:"2º",modelo:"I2",qtd:25,perc:16},{pos:"3º",modelo:"S9",qtd:23,perc:15},{pos:"4º",modelo:"S10",qtd:15,perc:10},{pos:"5º",modelo:"BR8",qtd:11,perc:7}],
     Mar: [{ pos:"1º",modelo:"S9",qtd:46,perc:25},{pos:"2º",modelo:"S8",qtd:28,perc:15},{pos:"3º",modelo:"I2",qtd:24,perc:13},{pos:"4º",modelo:"BR8",qtd:22,perc:12},{pos:"5º",modelo:"S10",qtd:18,perc:10}],
     Abr: [{ pos:"1º",modelo:"S9",qtd:45,perc:21},{pos:"2º",modelo:"S8",qtd:35,perc:16},{pos:"3º",modelo:"I2",qtd:23,perc:11},{pos:"4º",modelo:"S10",qtd:19,perc:9},{pos:"5º",modelo:"BR8",qtd:16,perc:7}],
-    Mai: [{ pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",qtd:22,whites:13},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
+    Mai: [{ pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",whites:13,qtd:22},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
   },
   sintomas: {
     Jan: [{ pos:"1º",sintoma:"Pneus",qtd:47,perc:26},{pos:"2º",sintoma:"Carregadores",qtd:35,perc:19},{pos:"3º",sintoma:"Inclinando/girando",qtd:14,perc:8},{pos:"4º",sintoma:"Torre/postura",qtd:14,perc:8},{pos:"5º",sintoma:"Não carrega/bateria",qtd:13,perc:7}],
@@ -193,7 +193,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// HELPERS (LÓGICA DOS FILTROS CORRIGIDA E REATIVA)
+// HELPERS (LÓGICA DOS FILTROS CORRIGIDA: APENAS EXIBE SE HOUVER DADO REAL MAIOR QUE ZERO)
 // ─────────────────────────────────────────────────────────────────────────
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
@@ -251,7 +251,7 @@ function monthSelectHtml(id) {
 let state = { aba: "visao", mes: "Todos", dark: true };
 
 // ─────────────────────────────────────────────────────────────────────────
-// FIREBASE (CORRIGIDO: GRAVAÇÃO E SNAPHOT EM SINTONIA TOTAL)
+// FIREBASE
 // ─────────────────────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyDqsMVRTIyLx_r1KiMMaT_hxYZTmVA6yNw",
@@ -265,7 +265,7 @@ const firebaseConfig = {
 let db = null;
 let auth = null;
 const ALLOWED_EMAIL = "vanessa@brmobility.com";
-let isSavingFlag = false; // Evita loop de substituição quando salvamos
+let isSavingFlag = false;
 
 try {
   firebase.initializeApp(firebaseConfig);
@@ -295,7 +295,7 @@ function startRealtimeSync() {
   if (unsubscribeSnapshot) unsubscribeSnapshot();
   
   unsubscribeSnapshot = db.collection("dashboard").doc("data").onSnapshot(doc => {
-    if (isSavingFlag) return; // Se está salvando dados locais, ignora o snapshot imediato para não sobrescrever com dados antigos do servidor
+    if (isSavingFlag) return;
     
     if (doc.exists) {
       const remote = doc.data();
@@ -322,7 +322,7 @@ function persist() {
   isSavingFlag = true;
   db.collection("dashboard").doc("data").set(mockData)
     .then(() => {
-      setTimeout(() => { isSavingFlag = false; }, 1000); // Libera o snapshot após gravação estável
+      setTimeout(() => { isSavingFlag = false; }, 800);
     })
     .catch(e => {
       console.error(e);
@@ -330,11 +330,11 @@ function persist() {
     });
 }
 
+// CORREÇÃO CRÍTICA AQUI: O persist deve ser disparado imediatamente antes da normalização local apagar os dados digitados
 function commitAndSave() {
-  // Tempo real imediato: normaliza o estado na memória local e reconstrói o HTML
+  persist();
   normalizarBancoDeDados();
   render();
-  persist();
 }
 
 // ─────────────────────────────────────────────────────────────────────────
