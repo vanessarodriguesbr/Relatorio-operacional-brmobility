@@ -151,7 +151,7 @@ let mockData = {
     Fev: [{ pos:"1º",modelo:"S8",qtd:26,perc:17},{pos:"2º",modelo:"I2",qtd:25,perc:16},{pos:"3º",modelo:"S9",qtd:23,perc:15},{pos:"4º",modelo:"S10",qtd:15,perc:10},{pos:"5º",modelo:"BR8",qtd:11,perc:7}],
     Mar: [{ pos:"1º",modelo:"S9",qtd:46,perc:25},{pos:"2º",modelo:"S8",qtd:28,perc:15},{pos:"3º",modelo:"I2",qtd:24,perc:13},{pos:"4º",modelo:"BR8",qtd:22,perc:12},{pos:"5º",modelo:"S10",qtd:18,perc:10}],
     Abr: [{ pos:"1º",modelo:"S9",qtd:45,perc:21},{pos:"2º",modelo:"S8",qtd:35,perc:16},{pos:"3º",modelo:"I2",qtd:23,perc:11},{pos:"4º",modelo:"S10",qtd:19,perc:9},{pos:"5º",modelo:"BR8",qtd:16,perc:7}],
-    Mai: [{ pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",whites:13,qtd:22},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
+    Mai: [{ pos:"1º",modelo:"S9",qtd:38,perc:23},{pos:"2º",modelo:"I2",qtd:24,perc:14},{pos:"3º",modelo:"S10",qtd:24,perc:14},{pos:"4º",modelo:"S8",qtd:22,perc:13},{pos:"5º",modelo:"BR8",qtd:14,perc:8}],
   },
   sintomas: {
     Jan: [{ pos:"1º",sintoma:"Pneus",qtd:47,perc:26},{pos:"2º",sintoma:"Carregadores",qtd:35,perc:19},{pos:"3º",sintoma:"Inclinando/girando",qtd:14,perc:8},{pos:"4º",sintoma:"Torre/postura",qtd:14,perc:8},{pos:"5º",sintoma:"Não carrega/bateria",qtd:13,perc:7}],
@@ -203,28 +203,47 @@ const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 function getMesesFiltro() {
   const setMeses = new Set();
   
-  mockData.chamados.forEach(c => { if(c.chamados > 0 || c.atendidos > 0) setMeses.add(c.mes); });
-  mockData.custos.forEach(c => { 
-    if(c.faturamento > 0 || c.desconto > 0 || c.transportadora > 0 || c.ats > 0 || c.obsDesconto || c.obsTransportadora || c.obsAts) {
-      setMeses.add(c.mes); 
-    }
-  });
-  mockData.desligamentos.forEach(d => { if(d.desligamentos > 0) setMeses.add(d.mes); });
-  mockData.substituicoes.forEach(s => { if(s.trocas > 0) setMeses.add(s.mes); });
+  if (Array.isArray(mockData.chamados)) {
+    mockData.chamados.forEach(c => { if(c && (c.chamados > 0 || c.atendidos > 0)) setMeses.add(c.mes); });
+  }
+  if (Array.isArray(mockData.custos)) {
+    mockData.custos.forEach(c => { 
+      if(c && (c.faturamento > 0 || c.desconto > 0 || c.transportadora > 0 || c.ats > 0 || c.obsDesconto || c.obsTransportadora || c.obsAts)) {
+        setMeses.add(c.mes); 
+      }
+    });
+  }
+  if (Array.isArray(mockData.desligamentos)) {
+    mockData.desligamentos.forEach(d => { if(d && d.desligamentos > 0) setMeses.add(d.mes); });
+  }
+  if (Array.isArray(mockData.substituicoes)) {
+    mockData.substituicoes.forEach(s => { if(s && s.trocas > 0) setMeses.add(s.mes); });
+  }
   
-  Object.keys(mockData.modelos).forEach(m => { if(mockData.modelos[m] && mockData.modelos[m].length > 0) setMeses.add(m); });
-  Object.keys(mockData.sintomas).forEach(m => { if(mockData.sintomas[m] && mockData.sintomas[m].length > 0) setMeses.add(m); });
+  if (mockData.modelos) {
+    Object.keys(mockData.modelos).forEach(m => { if(mockData.modelos[m] && mockData.modelos[m].length > 0) setMeses.add(m); });
+  }
+  if (mockData.sintomas) {
+    Object.keys(mockData.sintomas).forEach(m => { if(mockData.sintomas[m] && mockData.sintomas[m].length > 0) setMeses.add(m); });
+  }
   
   const ordenados = ALL_MESES_ORDER.filter(m => setMeses.has(m));
   return ["Todos", ...ordenados];
 }
 
 function normalizarBancoDeDados() {
+  if (!Array.isArray(mockData.chamados)) mockData.chamados = [];
+  if (!Array.isArray(mockData.custos)) mockData.custos = [];
+  if (!Array.isArray(mockData.desligamentos)) mockData.desligamentos = [];
+  if (!Array.isArray(mockData.substituicoes)) mockData.substituicoes = [];
+  if (!mockData.modelos || typeof mockData.modelos !== 'object') mockData.modelos = {};
+  if (!mockData.sintomas || typeof mockData.sintomas !== 'object') mockData.sintomas = {};
+
   ALL_MESES_ORDER.forEach(m => {
-    if (!mockData.chamados.some(c => c.mes === m)) mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
-    if (!mockData.custos.some(c => c.mes === m)) mockData.custos.push({ mes: m, chamados: 0, faturamento: 0, desconto: 0, transportadora: 0, ats: 0, obsDesconto:"", obsTransportadora:"", obsAts:"" });
-    if (!mockData.desligamentos.some(d => d.mes === m)) mockData.desligamentos.push({ mes: m, desligamentos: 0, perc: 0 });
-    if (!mockData.substituicoes.some(s => s.mes === m)) mockData.substituicoes.push({ mes: m, trocas: 0, perc: 0 });
+    if (!mockData.chamados.some(c => c && c.mes === m)) mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
+    if (!mockData.custos.some(c => c && c.mes === m)) mockData.custos.push({ mes: m, chamados: 0, faturamento: 0, desconto: 0, transportadora: 0, ats: 0, obsDesconto:"", obsTransportadora:"", obsAts:"" });
+    if (!mockData.desligamentos.some(d => d && d.mes === m)) mockData.desligamentos.push({ mes: m, desligamentos: 0, perc: 0 });
+    if (!mockData.substituicoes.some(s => s && s.mes === m)) mockData.substituicoes.push({ mes: m, trocas: 0, perc: 0 });
     if (!mockData.modelos[m]) mockData.modelos[m] = [];
     if (!mockData.sintomas[m]) mockData.sintomas[m] = [];
   });
@@ -237,7 +256,7 @@ function normalizarBancoDeDados() {
 }
 
 function upsertByMes(arr, mes, obj) {
-  const idx = arr.findIndex(x => x.mes === mes);
+  const idx = arr.findIndex(x => x && x.mes === mes);
   if (idx >= 0) arr[idx] = { ...arr[idx], ...obj };
   else arr.push(obj);
 }
@@ -265,7 +284,6 @@ const firebaseConfig = {
 let db = null;
 let auth = null;
 const ALLOWED_EMAIL = "vanessa@brmobility.com";
-let isSavingFlag = false;
 
 try {
   firebase.initializeApp(firebaseConfig);
@@ -295,8 +313,6 @@ function startRealtimeSync() {
   if (unsubscribeSnapshot) unsubscribeSnapshot();
   
   unsubscribeSnapshot = db.collection("dashboard").doc("data").onSnapshot(doc => {
-    if (isSavingFlag) return;
-    
     if (doc.exists) {
       const remote = doc.data();
       mockData.chamados = remote.chamados || mockData.chamados;
@@ -319,20 +335,15 @@ function startRealtimeSync() {
 
 function persist() {
   if (!db || !isEditor()) return;
-  isSavingFlag = true;
   db.collection("dashboard").doc("data").set(mockData)
-    .then(() => {
-      setTimeout(() => { isSavingFlag = false; }, 800);
-    })
     .catch(e => {
-      console.error(e);
-      isSavingFlag = false;
+      console.error("Erro ao salvar no Firestore:", e);
     });
 }
 
 function commitAndSave() {
-  persist();
   normalizarBancoDeDados();
+  persist();
   render();
 }
 
@@ -622,7 +633,7 @@ function wireFormDesligamentos() {
   const btn = document.getElementById('f-de-submit'); if (!btn) return;
   const mesSel=document.getElementById('f-de-mes'), qtdIn=document.getElementById('f-de-qtd'), percIn=document.getElementById('f-de-perc');
   function suggest() {
-    const c = mockData.chamados.find(c => c.mes === mesSel.value);
+    const c = mockData.chamados.find(c => c && c.mes === mesSel.value);
     const q = parseFloat(qtdIn.value);
     if (c && c.chamados>0 && !isNaN(q) && !percIn.dataset.touched) percIn.value = ((q/c.chamados)*100).toFixed(1);
   }
@@ -653,7 +664,7 @@ function wireFormTrocas() {
   const btn = document.getElementById('f-tr-submit'); if (!btn) return;
   const mesSel=document.getElementById('f-tr-mes'), qtdIn=document.getElementById('f-tr-qtd'), percIn=document.getElementById('f-tr-perc');
   function suggest() {
-    const c = mockData.chamados.find(c => c.mes === mesSel.value);
+    const c = mockData.chamados.find(c => c && c.mes === mesSel.value);
     const q = parseFloat(qtdIn.value);
     if (c && c.chamados>0 && !isNaN(q) && !percIn.dataset.touched) percIn.value = ((q/c.chamados)*100).toFixed(1);
   }
@@ -693,7 +704,7 @@ function wireFormCustos() {
   
   function carregarObsExistentes() {
     const mes = mesSel.value;
-    const custoExistente = mockData.custos.find(c => c.mes === mes);
+    const custoExistente = mockData.custos.find(c => c && c.mes === mes);
     document.getElementById('f-cu-fat').value = custoExistente && custoExistente.faturamento ? custoExistente.faturamento : "";
     document.getElementById('f-cu-desc').value = custoExistente && custoExistente.desconto ? custoExistente.desconto : "";
     document.getElementById('f-cu-trans').value = custoExistente && custoExistente.transportadora ? custoExistente.transportadora : "";
@@ -716,7 +727,7 @@ function wireFormCustos() {
     const obsAts = document.getElementById('f-cu-obs-ats').value.trim();
 
     if (!mes) { alert('Selecione o mês.'); return; }
-    const chamadosDoMes = (mockData.chamados.find(c=>c.mes===mes)?.chamados) || 0;
+    const chamadosDoMes = (mockData.chamados.find(c=>c && c.mes===mes)?.chamados) || 0;
     
     upsertByMes(mockData.custos, mes, { 
       mes, chamados: chamadosDoMes, faturamento, desconto: descuento, transportadora, ats, obsDesconto, obsTransportadora, obsAts
@@ -745,8 +756,8 @@ function attachTabFormEvents() {
 function miniAreaCard({ title, icon, color, dataKey, idSuffix }) {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
   const data = mesesValidos.map(m => {
-    const cObj = mockData.chamados.find(c => c.mes === m) || { noSLA: 0 };
-    const custoObj = mockData.custos.find(cust => cust.mes === m);
+    const cObj = mockData.chamados.find(c => c && c.mes === m) || { noSLA: 0 };
+    const custoObj = mockData.custos.find(cust => cust && cust.mes === m);
     return {
       mes: m,
       val: custoObj && custoObj[dataKey] !== undefined ? custoObj[dataKey] : (cObj[dataKey] || 0)
@@ -804,8 +815,8 @@ function wireMiniChartTooltips(formatValueFns) {
       const val = dataKeyInfo.getValue(mesKey);
       const sintoma = mockData.sintomas[mesKey]?.[0]?.sintoma ?? "-";
       const modelo = mockData.modelos[mesKey]?.[0]?.modelo ?? "-";
-      const chamadosV = mockData.chamados.find(c=>c.mes===mesKey)?.chamados || 0;
-      const trocasV = mockData.substituicoes.find(t=>t.mes===mesKey)?.trocas ?? "-";
+      const chamadosV = mockData.chamados.find(c=>c && c.mes===mesKey)?.chamados || 0;
+      const trocasV = mockData.substituicoes.find(t=>t && t.mes===mesKey)?.trocas ?? "-";
       let tip = host.querySelector('.tooltip-box');
       if (!tip) { tip = document.createElement('div'); tip.className = 'tooltip-box'; host.appendChild(tip); }
       tip.innerHTML = `<p style="font-weight:700;margin-bottom:4px">${mesKey}</p>
@@ -829,7 +840,7 @@ function wireMiniChartTooltips(formatValueFns) {
 // ─────────────────────────────────────────────────────────────────────────
 function tabVisaoGeral(mesFiltro) {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
-  const chamados = mockData.chamados.filter(c => mesesValidos.includes(c.mes));
+  const chamados = mockData.chamados.filter(c => c && mesesValidos.includes(c.mes));
   const maxChamados = Math.max(...chamados.map(c=>c.chamados), 1);
 
   if (mesFiltro === "Todos") {
@@ -879,9 +890,9 @@ valueLabel:`${Math.round((c.percSLA||0)*100)}%`, height:20, labelWidth:28 })).jo
     return html;
   }
 
-  const idx = chamados.findIndex(c => c.mes === mesFiltro);
+  const idx = chamados.findIndex(c => c && c.mes === mesFiltro);
   const c = chamados[idx] || { chamados:0, atendidos:0, percAtendidos:0, percSLA:0 };
-  const desl = mockData.desligamentos.find(d=>d.mes===mesFiltro) || { desligamentos:0, perc:0 };
+  const desl = mockData.desligamentos.find(d=>d && d.mes===mesFiltro) || { desligamentos:0, perc:0 };
   const modelos = mockData.modelos[mesFiltro] || [];
   const sintomas = mockData.sintomas[mesFiltro] || [];
 
@@ -918,21 +929,21 @@ valueLabel:`${Math.round((c.percSLA||0)*100)}%`, height:20, labelWidth:28 })).jo
 function chamadosTable(data) {
   return `<table>
     <thead><tr>${["Mês","Chamados","Atendidos","% Atend.","No SLA","% SLA"].map(h=>`<th>${h}</th>`).join("")}</tr></thead>
-    <tbody>${data.map(row => `<tr>
+    <tbody>${data.map(row => row ? `<tr>
       <td style="font-weight:600">${MES_FULL[row.mes]||row.mes}</td>
       <td>${fmt(row.chamados)}</td>
       <td>${fmt(row.atendidos)}</td>
       <td>${fmtPct(row.percAtendidos)}</td>
       <td>${fmt(row.noSLA)}</td>
       <td><span class="badge" style="background:${row.percSLA>=0.8?"#dcfce7":row.percSLA>=0.7?"#fff7ed":"#fef2f2"};color:${row.percSLA>=0.8?"#15803d":row.percSLA>=0.7?"#c2410c":"#b91c1c"}">${fmtPct(row.percSLA)}</span></td>
-    </tr>`).join("")}</tbody>
+    </tr>` : '').join("")}</tbody>
   </table>`;
 }
 function tabChamados(mesFiltro) {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
-  const data = mesFiltro==="Todos" ? mockData.chamados.filter(c=>mesesValidos.includes(c.mes)) : mockData.chamados.filter(c=>c.mes===mesFiltro);
-  const maxC = Math.max(...mockData.chamados.map(c=>c.chamados), 1);
-  const maxA = Math.max(...mockData.chamados.map(c=>c.atendidos), 1);
+  const data = mesFiltro==="Todos" ? mockData.chamados.filter(c=>c && mesesValidos.includes(c.mes)) : mockData.chamados.filter(c=>c && c.mes===mesFiltro);
+  const maxC = Math.max(...mockData.chamados.map(c=>c?c.chamados:0), 1);
+  const maxA = Math.max(...mockData.chamados.map(c=>c?c.atendidos:0), 1);
   const formHtml = isEditor() ? formChamados() : "";
 
   if (mesFiltro === "Todos") {
@@ -947,7 +958,7 @@ function tabChamados(mesFiltro) {
     ${data.map(row => kpiCard({label:"Chamados",value:fmt(row.chamados),color:"#5b7cf5"})
       + kpiCard({label:"Atendidos",value:fmt(row.atendidos),sub:fmtPct(row.percAtendidos),color:"#22c55e"})
       + kpiCard({label:"SLA",value:fmtPct(row.percSLA),color:row.percSLA>=0.8?"#22c55e":row.percSLA>=0.7?"#f97316":"#ef4444"})
-      + kpiCard({label:"No SLA",value:fmt(row.noSLA),color:"#8b5cf6"})).join("")}
+      + kpiCard({label:"No SLA",value:fmt(row.noSLA),color:"#8b5cf6"}).join(""))}
   </div>${chamadosTable(data)}`;
 }
 
@@ -1042,10 +1053,10 @@ function tabSintomas(mesFiltro) {
 // ─────────────────────────────────────────────────────────────────────────
 function tabDesligamentos(mesFiltro) {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
-  const allData = mockData.desligamentos.filter(d=>mesesValidos.includes(d.mes));
-  const data = mesFiltro==="Todos" ? allData : allData.filter(d=>d.mes===mesFiltro);
-  const maxD = Math.max(...mockData.desligamentos.map(d=>d.desligamentos), 1);
-  const percDosChamados = d => { const c = mockData.chamados.find(c=>c.mes===d.mes); return c && c.chamados>0 ? d.desligamentos/c.chamados : 0; };
+  const allData = mockData.desligamentos.filter(d=> d && mesesValidos.includes(d.mes));
+  const data = mesFiltro==="Todos" ? allData : allData.filter(d=> d && d.mes===mesFiltro);
+  const maxD = Math.max(...mockData.desligamentos.map(d=>d?d.desligamentos:0), 1);
+  const percDosChamados = d => { if(!d) return 0; const c = mockData.chamados.find(c=>c && c.mes===d.mes); return c && c.chamados>0 ? d.desligamentos/c.chamados : 0; };
   const maxPercChamados = Math.max(...mockData.desligamentos.map(d=>percDosChamados(d)*100), 1);
   const formHtml = isEditor() ? formDesligamentos() : "";
   if (mesFiltro === "Todos") {
@@ -1081,10 +1092,10 @@ function tabDesligamentos(mesFiltro) {
 // ─────────────────────────────────────────────────────────────────────────
 function tabTrocas(mesFiltro) {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
-  const allData = mockData.substituicoes.filter(s=>mesesValidos.includes(s.mes));
-  const data = mesFiltro==="Todos" ? allData : allData.filter(d=>d.mes===mesFiltro);
-  const maxT = Math.max(...mockData.substituicoes.map(s=>s.trocas), 1);
-  const maxPerc = Math.max(...mockData.substituicoes.map(s=>s.perc*100), 1);
+  const allData = mockData.substituicoes.filter(s=> s && mesesValidos.includes(s.mes));
+  const data = mesFiltro==="Todos" ? allData : allData.filter(d=> d && d.mes===mesFiltro);
+  const maxT = Math.max(...mockData.substituicoes.map(s=>s?s.trocas:0), 1);
+  const maxPerc = Math.max(...mockData.substituicoes.map(s=>s?s.perc*100:0), 1);
   const formHtml = isEditor() ? formTrocas() : "";
   if (mesFiltro === "Todos") {
     return formHtml + `<div class="card">
@@ -1120,23 +1131,23 @@ function tabTrocas(mesFiltro) {
 function costTable(data) {
   return `<table>
     <thead><tr>${["Mês","Faturamento","Descontos","Transportadora","ATS","Total Custos"].map(h=>`<th>${h}</th>`).join("")}</tr></thead>
-    <tbody>${data.map(row => `<tr>
+    <tbody>${data.map(row => row ? `<tr>
       <td style="font-weight:600">${MES_FULL[row.mes]||row.mes}</td>
       <td>${fmtR(row.faturamento)}</td>
       <td style="color:#ef4444">${fmtR(row.desconto)}</td>
       <td style="color:#f59e0b">${fmtR(row.transportadora)}</td>
       <td style="color:#8b5cf6">${fmtR(row.ats)}</td>
       <td style="font-weight:600">${fmtR((row.desconto||0)+(row.transportadora||0)+(row.ats||0))}</td>
-    </tr>`).join("")}</tbody>
+    </tr>` : '').join("")}</tbody>
   </table>`;
 }
 function costBlock({ title, icon, color, dataKey, data, obsKey }) {
-  const values = data.map(d=>d[dataKey] || 0);
+  const values = data.map(d=>d?d[dataKey] || 0 : 0);
   const maxVal = Math.max(...values, 1);
   const total = values.reduce((a,b)=>a+b,0);
   
   const obsHtml = data.map(d => {
-    if (d[obsKey]) {
+    if (d && d[obsKey]) {
       return `<div style="border-left:3px solid ${color};padding-left:12px;margin-top:10px;margin-bottom:10px;"><p style="font-size:12px;color:var(--text-primary);margin:0;line-height:1.6"><b>${d.mes}:</b> ${esc(d[obsKey])}</p></div>`;
     }
     return "";
@@ -1152,7 +1163,7 @@ function costBlock({ title, icon, color, dataKey, data, obsKey }) {
 }
 function tabCustos(mesFiltro) {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
-  const data = mesFiltro==="Todos" ? mockData.custos.filter(c=>mesesValidos.includes(c.mes)) : mockData.custos.filter(c=>c.mes===mesFiltro);
+  const data = mesFiltro==="Todos" ? mockData.custos.filter(c=>c && mesesValidos.includes(c.mes)) : mockData.custos.filter(c=>c && c.mes===mesFiltro);
   const formHtml = isEditor() ? formCustos() : "";
   if (mesFiltro === "Todos") {
     return formHtml
@@ -1162,9 +1173,9 @@ function tabCustos(mesFiltro) {
     + `<div>${sectionTitle("Comparativo Detalhado por Mês")}${costTable(data)}</div>`;
   }
 
-  const totDesc = data.reduce((a,b)=>a+(b.desconto||0),0);
-  const totTrans = data.reduce((a,b)=>a+(b.transportadora||0),0);
-  const totAts = data.reduce((a,b)=>a+(b.ats||0),0);
+  const totDesc = data.reduce((a,b)=>a+(b?b.desconto||0:0),0);
+  const totTrans = data.reduce((a,b)=>a+(b?b.transportadora||0:0),0);
+  const totAts = data.reduce((a,b)=>a+(b?b.ats||0:0),0);
   const totFat = data[0]?.faturamento || 0;
   let singHtml = formHtml + `<div class="kpi-row">
     ${kpiCard({label:"Faturamento",value:fmtR(totFat),color:"#22c55e"})}
@@ -1192,9 +1203,9 @@ function dynamicRiskSummary() {
   if (!mesesValidos.length) return "";
   
   const lastMes = mesesValidos[mesesValidos.length-1];
-  const last = mockData.chamados.find(c => c.mes === lastMes) || { mes: lastMes, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 };
-  const desl = mockData.desligamentos.find(d=>d.mes===last.mes);
-  const troc = mockData.substituicoes.find(d=>d.mes===last.mes);
+  const last = mockData.chamados.find(c => c && c.mes === lastMes) || { mes: lastMes, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 };
+  const desl = mockData.desligamentos.find(d=>d && d.mes===last.mes);
+  const troc = mockData.substituicoes.find(d=>d && d.mes===last.mes);
   
   const items = [];
   if (last.percSLA && last.percSLA < 0.7) items.push(`SLA de ${MES_FULL[last.mes] || last.mes} está em ${(last.percSLA*100).toFixed(0)}% — abaixo da meta de 80%. Meta não atingida.`);
@@ -1212,10 +1223,10 @@ function dynamicRiskSummary() {
 function tabAtencao() {
   const mesesValidos = getMesesFiltro().filter(m => m !== "Todos");
   const lastMes = mesesValidos[mesesValidos.length-1] || "Jan";
-  const last = mockData.chamados.find(c => c.mes === lastMes) || { mes: lastMes, percSLA: 0.8, chamados:0 };
-  const desl = mockData.desligamentos.find(d=>d.mes===last.mes) || { desligamentos: 0, perc: 0 };
-  const troc = mockData.substituicoes.find(d=>d.mes===last.mes) || { trocas: 0, perc: 0 };
-  const cost = mockData.custos.find(d=>d.mes===last.mes) || { desconto: 0, transportadora: 0, ats: 0 };
+  const last = mockData.chamados.find(c => c && c.mes === lastMes) || { mes: lastMes, percSLA: 0.8, chamados:0 };
+  const desl = mockData.desligamentos.find(d=>d && d.mes===last.mes) || { desligamentos: 0, perc: 0 };
+  const troc = mockData.substituicoes.find(d=>d && d.mes===last.mes) || { trocas: 0, perc: 0 };
+  const cost = mockData.custos.find(d=>d && d.mes===last.mes) || { desconto: 0, transportadora: 0, ats: 0 };
   const riscos = [
     { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
       { ref:`SLA Operacional em ${MES_FULL[last.mes] || last.mes} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
@@ -1314,10 +1325,10 @@ function render() {
 
   if (state.aba === "visao" && state.mes === "Todos") {
     wireMiniChartTooltips({
-      desconto: { color:"#ef4444", formatValue:fmtR, getValue: mKey => mockData.custos.find(c=>c.mes===mKey)?.desconto || 0 },
-      transportadora: { color:"#f59e0b", formatValue:fmtR, getValue: mKey => mockData.custos.find(c=>c.mes===mKey)?.transportadora || 0 },
-      ats: { color:"#8b5cf6", formatValue:fmtR, getValue: mKey => mockData.custos.find(c=>c.mes===mKey)?.ats || 0 },
-      slaCount: { color:"#22c55e", formatValue: v => `${fmt(v)} chamados`, getValue: mKey => mockData.chamados.find(c=>c.mes===mKey)?.noSLA || 0 },
+      desconto: { color:"#ef4444", formatValue:fmtR, getValue: mKey => mockData.custos.find(c=>c && c.mes===mKey)?.desconto || 0 },
+      transportadora: { color:"#f59e0b", formatValue:fmtR, getValue: mKey => mockData.custos.find(c=>c && c.mes===mKey)?.transportadora || 0 },
+      ats: { color:"#8b5cf6", formatValue:fmtR, getValue: mKey => mockData.custos.find(c=>c && c.mes===mKey)?.ats || 0 },
+      slaCount: { color:"#22c55e", formatValue: v => `${fmt(v)} chamados`, getValue: mKey => mockData.chamados.find(c=>c && c.mes===mKey)?.noSLA || 0 },
     });
   }
 }
