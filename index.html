@@ -193,7 +193,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// HELPERS
+// HELPERS (REFORMULADO COMPARTILHAMENTO DE MESES ENTRE ABAS)
 // ─────────────────────────────────────────────────────────────────────────
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
@@ -201,18 +201,52 @@ const fmtPct = v => (v==null||isNaN(v)?"-":`${(v*100).toFixed(1)}%`);
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 function getMesesFiltro() {
-  const presentes = mockData.chamados.map(c => c.mes);
-  const ordenados = ALL_MESES_ORDER.filter(m => presentes.includes(m));
+  // Varre de forma unificada todas as coleções de dados para achar qualquer mês cadastrado
+  const setMeses = new Set();
+  mockData.chamados.forEach(c => setMeses.add(c.mes));
+  mockData.custos.forEach(c => setMeses.add(c.mes));
+  mockData.desligamentos.forEach(d => setMeses.add(d.mes));
+  mockData.substituicoes.forEach(s => setMeses.add(s.mes));
+  Object.keys(mockData.modelos).forEach(m => setMeses.add(m));
+  Object.keys(mockData.sintomas).forEach(m => setMeses.add(m));
+  
+  const ordenados = ALL_MESES_ORDER.filter(m => setMeses.has(m));
   return ["Todos", ...ordenados];
+}
+
+// Garante o preenchimento de objetos nulos para evitar quebras nos loops acumulados
+function normalizarBancoDeDados() {
+  const mesesExistentes = getMesesFiltro().filter(m => m !== "Todos");
+  mesesExistentes.forEach(m => {
+    if (!mockData.chamados.some(c => c.mes === m)) {
+      mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
+    }
+    if (!mockData.custos.some(c => c.mes === m)) {
+      mockData.custos.push({ mes: m, chamados: 0, faturamento: 0, desconto: 0, transportadora: 0, ats: 0, obsDesconto:"", obsTransportadora:"", obsAts:"" });
+    }
+    if (!mockData.desligamentos.some(d => d.mes === m)) {
+      mockData.desligamentos.push({ mes: m, desligamentos: 0, perc: 0 });
+    }
+    if (!mockData.substituicoes.some(s => s.mes === m)) {
+      mockData.substituicoes.push({ mes: m, trocas: 0, perc: 0 });
+    }
+    if (!mockData.modelos[m]) mockData.modelos[m] = [];
+    if (!mockData.sintomas[m]) mockData.sintomas[m] = [];
+  });
+  
+  // Reordena todas as listas internas baseado no calendário
+  const sortFn = (a, b) => ALL_MESES_ORDER.indexOf(a.mes) - ALL_MESES_ORDER.indexOf(b.mes);
+  mockData.chamados.sort(sortFn);
+  mockData.custos.sort(sortFn);
+  mockData.desligamentos.sort(sortFn);
+  mockData.substituicoes.sort(sortFn);
 }
 
 function upsertByMes(arr, mes, obj) {
   const idx = arr.findIndex(x => x.mes === mes);
   if (idx >= 0) arr[idx] = { ...arr[idx], ...obj };
-  else {
-    arr.push(obj);
-    arr.sort((a,b) => ALL_MESES_ORDER.indexOf(a.mes) - ALL_MESES_ORDER.indexOf(b.mes));
-  }
+  else arr.push(obj);
+  normalizarBancoDeDados();
 }
 
 function monthSelectHtml(id) {
@@ -254,7 +288,7 @@ function isEditor() {
 
 let unsubscribeSnapshot = null;
 function startRealtimeSync() {
-  if (!db) { render(); return; }
+  if (!db) { normalizarBancoDeDados(); render(); return; }
   if (unsubscribeSnapshot) unsubscribeSnapshot();
   unsubscribeSnapshot = db.collection("dashboard").doc("data").onSnapshot(doc => {
     if (doc.exists) {
@@ -268,9 +302,11 @@ function startRealtimeSync() {
     } else if (isEditor()) {
       db.collection("dashboard").doc("data").set(mockData).catch(e => console.error(e));
     }
+    normalizarBancoDeDados();
     render();
   }, err => {
     console.error("Erro de sincronização com Firestore:", err);
+    normalizarBancoDeDados();
     render();
   });
 }
@@ -284,6 +320,7 @@ function persist() {
 }
 
 function commitAndSave() {
+  normalizarBancoDeDados();
   render();
   persist();
 }
@@ -405,7 +442,7 @@ window.logout = function() {
 // HBAR / KPI / SECTION HELPERS
 // ─────────────────────────────────────────────────────────────────────────
 function hbar({ value, max, color, label, valueLabel, height=18, labelWidth=28 }) {
-  const pct = Math.min((value/max)*100, 100);
+  const pct = max > 0 ? Math.min((value/max)*100, 100) : 0;
   return `<div class="hbar-row">
     <span class="hbar-label" style="width:${labelWidth}px">${esc(label)}</span>
     <div class="hbar-track" style="height:${height}px">
@@ -430,7 +467,7 @@ function kpiCard({ label, value, sub, color="#5b7cf5" }) {
 function sectionTitle(txt) { return `<h3 class="section-title">${esc(txt)}</h3>`; }
 
 // ─────────────────────────────────────────────────────────────────────────
-// FORMULÁRIOS DE EDIÇÃO (somente visíveis para o e-mail autorizado)
+// FORMULÁRIOS DE EDIÇÃO
 // ─────────────────────────────────────────────────────────────────────────
 function formChamados() {
   return `<div class="card form-card">
@@ -539,9 +576,6 @@ function wireFormSintomas() {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// CONTINUAÇÃO: FORMULÁRIOS E LÓGICA DO DASHBOARD
-// ─────────────────────────────────────────────────────────────────────────
 function formDesligamentos() {
   return `<div class="card form-card">
     <p class="block-label">➕ ADICIONAR / ATUALIZAR MÊS — DESLIGAMENTOS</p>
@@ -630,10 +664,10 @@ function wireFormCustos() {
   function carregarObsExistentes() {
     const mes = mesSel.value;
     const custoExistente = mockData.custos.find(c => c.mes === mes);
-    document.getElementById('f-cu-fat').value = custoExistente ? custoExistente.faturamento : "";
-    document.getElementById('f-cu-desc').value = custoExistente ? custoExistente.desconto : "";
-    document.getElementById('f-cu-trans').value = custoExistente ? custoExistente.transportadora : "";
-    document.getElementById('f-cu-ats').value = custoExistente ? custoExistente.ats : "";
+    document.getElementById('f-cu-fat').value = custoExistente && custoExistente.faturamento ? custoExistente.faturamento : "";
+    document.getElementById('f-cu-desc').value = custoExistente && custoExistente.desconto !== undefined ? custoExistente.desconto : "";
+    document.getElementById('f-cu-trans').value = custoExistente && custoExistente.transportadora !== undefined ? custoExistente.transportadora : "";
+    document.getElementById('f-cu-ats').value = custoExistente && custoExistente.ats !== undefined ? custoExistente.ats : "";
     document.getElementById('f-cu-obs-desc').value = custoExistente?.obsDesconto || "";
     document.getElementById('f-cu-obs-trans').value = custoExistente?.obsTransportadora || "";
     document.getElementById('f-cu-obs-ats').value = custoExistente?.obsAts || "";
@@ -643,23 +677,21 @@ function wireFormCustos() {
 
   btn.addEventListener('click', () => {
     const mes = mesSel.value;
-    const faturamento = parseFloat(document.getElementById('f-cu-fat').value);
-    const desconto = parseFloat(document.getElementById('f-cu-desc').value);
-    const transportadora = parseFloat(document.getElementById('f-cu-trans').value);
-    const ats = parseFloat(document.getElementById('f-cu-ats').value);
+    const faturamento = parseFloat(document.getElementById('f-cu-fat').value) || 0;
+    const descuento = parseFloat(document.getElementById('f-cu-desc').value) || 0;
+    const transportadora = parseFloat(document.getElementById('f-cu-trans').value) || 0;
+    const ats = parseFloat(document.getElementById('f-cu-ats').value) || 0;
     const obsDesconto = document.getElementById('f-cu-obs-desc').value.trim();
     const obsTransportadora = document.getElementById('f-cu-obs-trans').value.trim();
     const obsAts = document.getElementById('f-cu-obs-ats').value.trim();
 
-    if (!mes || isNaN(faturamento) || isNaN(desconto) || isNaN(transportadora) || isNaN(ats)) {
-      alert('Preencha todos os campos corretamente.'); return;
-    }
+    if (!mes) { alert('Selecione o mês corretamente.'); return; }
     const chamadosDoMes = (mockData.chamados.find(c=>c.mes===mes)?.chamados) || 0;
     upsertByMes(mockData.custos, mes, { 
       mes, 
       chamados: chamadosDoMes, 
       faturamento, 
-      desconto, 
+      desconto: descuento, 
       transportadora, 
       ats,
       obsDesconto,
@@ -684,7 +716,7 @@ function attachTabFormEvents() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// MINI AREA CHART (SVG DINEÂMICO)
+// MINI AREA CHART (SVG TOTALMENTE DINÂMICO BASEADO EM QUALQUER ABA)
 // ─────────────────────────────────────────────────────────────────────────
 function miniAreaCard({ title, icon, color, dataKey, idSuffix }) {
   const data = mockData.chamados.map((c, i) => {
@@ -739,12 +771,13 @@ function wireMiniChartTooltips(formatValueFns) {
     circle.addEventListener('mouseenter', () => {
       const host = document.querySelector(`[data-tooltip-host="${chartId}"]`);
       if (!host) return;
-      const mesKey = mockData.chamados[idx].mes;
+      const mesKey = mockData.chamados[idx]?.mes;
+      if (!mesKey) return;
       const dataKeyInfo = formatValueFns[chartId];
       const val = dataKeyInfo.getValue(idx);
       const sintoma = mockData.sintomas[mesKey]?.[0]?.sintoma ?? "-";
       const modelo = mockData.modelos[mesKey]?.[0]?.modelo ?? "-";
-      const chamadosV = mockData.chamados[idx]?.chamados;
+      const chamadosV = mockData.chamados[idx]?.chamados ?? 0;
       const trocasV = mockData.substituicoes.find(t=>t.mes===mesKey)?.trocas ?? "-";
       let tip = host.querySelector('.tooltip-box');
       if (!tip) { tip = document.createElement('div'); tip.className = 'tooltip-box'; host.appendChild(tip); }
@@ -765,7 +798,7 @@ function wireMiniChartTooltips(formatValueFns) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// TAB: VISÃO GERAL
+// TAB: VISÃO GERAL (TOTALMENTE DINÂMICA)
 // ─────────────────────────────────────────────────────────────────────────
 function tabVisaoGeral(mesFiltro) {
   const chamados = mockData.chamados;
@@ -780,7 +813,7 @@ function tabVisaoGeral(mesFiltro) {
       </div>
       <div>
         <p class="block-label">SLA CUMPRIDO (%)</p>
-        ${chamados.map(c => hbar({ label:c.mes, value:c.percSLA*100, max:100, color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444", valueLabel:`${Math.round(c.percSLA*100)}%`, height:20, labelWidth:28 })).join("")}
+        ${chamados.map(c => hbar({ label:c.mes, value:c.percSLA*100, max:100, color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444", valueLabel:`${Math.round((c.percSLA||0)*100)}%`, height:20, labelWidth:28 })).join("")}
       </div>
     </div>
 
@@ -796,7 +829,7 @@ function tabVisaoGeral(mesFiltro) {
     <div class="insight-grid">
       <div class="insight-box" style="background:#f0fdf4;border:1px solid #bbf7d0">
         <p class="insight-title" style="color:#15803d">📈 O que melhorou</p>
-        ${["Faturamento cresceu de forma constante","Descontos em Fevereiro foram zero — melhor mês do período","Trocas de equipamentos atingiram mínimas estratégicas","Controle de custos otimizado regionalmente"]
+        ${["Faturamento cresceu de forma constante","Descontos operacionais rastreados e em controle contínuo","Trocas de equipamentos atingiram mínimas estratégicas","Controle de custos otimizado regionalmente"]
           .map(t => `<p class="insight-item" style="color:#166534">${esc(t)}</p>`).join("")}
       </div>
       <div class="insight-box" style="background:#fef2f2;border:1px solid #fecaca">
@@ -818,12 +851,13 @@ function tabVisaoGeral(mesFiltro) {
   }
 
   const idx = chamados.findIndex(c => c.mes === mesFiltro);
-  const c = chamados[idx];
+  const c = chamados[idx] || { chamados:0, atendidos:0, percAtendidos:0, percSLA:0 };
   const desl = mockData.desligamentos.find(d=>d.mes===mesFiltro) || { desligamentos:0, perc:0 };
   const modelos = mockData.modelos[mesFiltro] || [];
   const sintomas = mockData.sintomas[mesFiltro] || [];
 
   function rankList(items, key, color) {
+    if (!items.length) return `<p style="font-size:12px;color:var(--text-muted);">Nenhum dado cadastrado para este mês.</p>`;
     return items.map((m,i) => `<div class="rank-row">
       <span class="rank-num" style="background:${color}">${i+1}</span>
       <div style="flex:1">
@@ -836,7 +870,7 @@ function tabVisaoGeral(mesFiltro) {
     </div>`).join("");
   }
 
-  return `<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Dados de <strong>${MES_FULL[mesFiltro]}</strong></p>
+  return `<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Dados de <strong>${MES_FULL[mesFiltro] || mesFiltro}</strong></p>
   <div class="kpi-row">
     ${kpiCard({ label:"Total de Chamados", value:fmt(c.chamados), color:"#5b7cf5" })}
     ${kpiCard({ label:"Encerrados no Mês", value:fmt(c.atendidos), sub:fmtPct(c.percAtendidos)+" do total", color:"#22c55e" })}
@@ -874,8 +908,8 @@ function tabChamados(mesFiltro) {
   if (mesFiltro === "Todos") {
     return formHtml + `<div class="card">
       <div class="block-divider"><p class="block-label">TOTAL DE CHAMADOS</p>${data.map(c=>hbar({label:c.mes,value:c.chamados,max:maxC,color:"#5b7cf5",valueLabel:String(c.chamados),height:20,labelWidth:28})).join("")}</div>
-      <div class="block-divider"><p class="block-label">ATENDIDOS NO MÊS</p>${data.map(c=>hbar({label:c.atendidos ? c.mes : c.mes,value:c.atendidos,max:maxA,color:"#22c55e",valueLabel:String(c.atendidos),height:20,labelWidth:28})).join("")}</div>
-      <div><p class="block-label">SLA CUMPRIDO (%)</p>${data.map(c=>hbar({label:c.mes,value:c.percSLA*100,max:100,color:c.percSLA>=0.8?"#22c55e":c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round(c.percSLA*100)}%`,height:20,labelWidth:28})).join("")}</div>
+      <div class="block-divider"><p class="block-label">ATENDIDOS NO MÊS</p>${data.map(c=>hbar({label:c.mes,value:c.atendidos,max:maxA,color:"#22c55e",valueLabel:String(c.atendidos),height:20,labelWidth:28})).join("")}</div>
+      <div><p class="block-label">SLA CUMPRIDO (%)</p>${data.map(c=>hbar({label:c.mes,value:c.percSLA*100,max:100,color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round((c.percSLA||0)*100)}%`,height:20,labelWidth:28})).join("")}</div>
     </div>${chamadosTable(data)}`;
   }
 
@@ -892,7 +926,7 @@ function tabChamados(mesFiltro) {
 // ─────────────────────────────────────────────────────────────────────────
 function tabModelos(mesFiltro) {
   const colors = ["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
-  const meses = mesFiltro==="Todos" ? Object.keys(mockData.modelos) : [mesFiltro];
+  const meses = mesFiltro==="Todos" ? getMesesFiltro().filter(m=>m!=="Todos") : [mesFiltro];
   const formHtml = isEditor() ? formModelos() : "";
 
   if (mesFiltro === "Todos") {
@@ -903,15 +937,17 @@ function tabModelos(mesFiltro) {
 
     let html = formHtml + `<div class="card">
       <p class="block-label" style="margin-bottom:16px">TOTAL DE CHAMADOS POR MODELO (ACUMULADO)</p>
-      ${totalsArr.map(([modelo,qtd],i) => hbar({label:modelo,value:qtd,max:maxTotal,color:colors[i%colors.length],valueLabel:String(qtd),height:22,labelWidth:40})).join("")}
+      ${totalsArr.length ? totalsArr.map(([modelo,qtd],i) => hbar({label:modelo,value:qtd,max:maxTotal,color:colors[i%colors.length],valueLabel:String(qtd),height:22,labelWidth:40})).join("") : "<p style='font-size:12px;color:var(--text-muted);'>Nenhum modelo cadastrado.</p>"}
     </div>`;
     meses.forEach(m => {
       const rows = mockData.modelos[m] || [];
-      const maxQ = Math.max(...rows.map(r=>r.qtd), 1);
-      html += `<div class="card">
-        <p style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:12px">${MES_FULL[m]} — Top 5 Modelos</p>
-        ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:18,labelWidth:40})).join("")}
-      </div>`;
+      if(rows.length) {
+        const maxQ = Math.max(...rows.map(r=>r.qtd), 1);
+        html += `<div class="card">
+          <p style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:12px">${MES_FULL[m] || m} — Top 5 Modelos</p>
+          ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:18,labelWidth:40})).join("")}
+        </div>`;
+      }
     });
     return html;
   }
@@ -919,8 +955,8 @@ function tabModelos(mesFiltro) {
   const rows = mockData.modelos[mesFiltro] || [];
   const maxQ = Math.max(...rows.map(r=>r.qtd), 1);
   return formHtml + `<div class="card">
-    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro]} — Top 5 Modelos</p>
-    ${rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22,labelWidth:40})).join("")}
+    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro] || mesFiltro} — Top 5 Modelos</p>
+    ${rows.length ? rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22,labelWidth:40})).join("") : "<p style='font-size:12px;color:var(--text-muted);'>Nenhum dado cadastrado.</p>"}
   </div>`;
 }
 
@@ -929,7 +965,7 @@ function tabModelos(mesFiltro) {
 // ─────────────────────────────────────────────────────────────────────────
 function tabSintomas(mesFiltro) {
   const colors = ["#5b7cf5","#f97316","#22c55e","#8b5cf6","#ef4444"];
-  const meses = mesFiltro==="Todos" ? Object.keys(mockData.sintomas) : [mesFiltro];
+  const meses = mesFiltro==="Todos" ? getMesesFiltro().filter(m=>m!=="Todos") : [mesFiltro];
   const formHtml = isEditor() ? formSintomas() : "";
 
   if (mesFiltro === "Todos") {
@@ -942,17 +978,19 @@ function tabSintomas(mesFiltro) {
 
     let html = formHtml + `<div class="card">
       <p class="block-label" style="margin-bottom:16px">SINTOMAS MAIS FREQUENTES (ACUMULADO)</p>
-      ${accumRows.map(r => hbar({label:r.label,value:r.value,max:maxVal,color:r.color,valueLabel:r.valueLabel,height:20,labelWidth:lw})).join("")}
+      ${accumRows.length ? accumRows.map(r => hbar({label:r.label,value:r.value,max:maxVal,color:r.color,valueLabel:r.valueLabel,height:20,labelWidth:lw})).join("") : "<p style='font-size:12px;color:var(--text-muted);'>Nenhum sintoma acumulado.</p>"}
     </div>`;
 
     meses.forEach(m => {
       const rows = (mockData.sintomas[m]||[]).map((s,i) => ({ label:s.sintoma, value:s.qtd, valueLabel:`${s.qtd} (${s.perc}%)`, color:colors[i] }));
-      const maxV = Math.max(...rows.map(r=>r.value), 1);
-      const labelW = rows.length ? autoLabelWidth(rows.map(r=>r.label)) : 40;
-      html += `<div class="card">
-        <p style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:12px">${MES_FULL[m]} — Top 5 Sintomas</p>
-        ${rows.map(r => hbar({label:r.label,value:r.value,max:maxV,color:r.color,valueLabel:r.valueLabel,height:18,labelWidth:labelW})).join("")}
-      </div>`;
+      if(rows.length) {
+        const maxV = Math.max(...rows.map(r=>r.value), 1);
+        const labelW = rows.length ? autoLabelWidth(rows.map(r=>r.label)) : 40;
+        html += `<div class="card">
+          <p style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:12px">${MES_FULL[m] || m} — Top 5 Sintomas</p>
+          ${rows.map(r => hbar({label:r.label,value:r.value,max:maxV,color:r.color,valueLabel:r.valueLabel,height:18,labelWidth:labelW})).join("")}
+        </div>`;
+      }
     });
     return html;
   }
@@ -961,8 +999,8 @@ function tabSintomas(mesFiltro) {
   const maxQ = Math.max(...rows.map(r=>r.qtd), 1);
   const lw = rows.length ? autoLabelWidth(rows.map(r=>r.sintoma)) : 40;
   return formHtml + `<div class="card">
-    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro]} — Top 5 Sintomas</p>
-    ${rows.map((s,i) => hbar({label:s.sintoma,value:s.qtd,max:maxQ,color:colors[i],valueLabel:`${s.qtd} (${s.perc}%)`,height:22,labelWidth:lw})).join("")}
+    <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro] || mesFiltro} — Top 5 Sintomas</p>
+    ${rows.length ? rows.map((s,i) => hbar({label:s.sintoma,value:s.qtd,max:maxQ,color:colors[i],valueLabel:`${s.qtd} (${s.perc}%)`,height:22,labelWidth:lw})).join("") : "<p style='font-size:12px;color:var(--text-muted);'>Nenhum dado cadastrado.</p>"}
   </div>`;
 }
 
@@ -1058,7 +1096,7 @@ function costTable(data) {
   </table>`;
 }
 function costBlock({ title, icon, color, dataKey, data, obsKey }) {
-  const values = data.map(d=>d[dataKey]);
+  const values = data.map(d=>d[dataKey] || 0);
   const maxVal = Math.max(...values, 1);
   const total = values.reduce((a,b)=>a+b,0);
   
@@ -1072,7 +1110,7 @@ function costBlock({ title, icon, color, dataKey, data, obsKey }) {
   return `<div class="card">
     <p style="font-size:12px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.07em;margin:0 0 16px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">${icon}</span>${esc(title)}</p>
     <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Valores por mês</p>
-    ${data.map(d => hbar({label:d.mes,value:d[dataKey],max:maxVal,color:color,valueLabel:fmtR(d[dataKey]),height:20,labelWidth:28})).join("")}
+    ${data.map(d => hbar({label:d.mes,value:d[dataKey] || 0,max:maxVal,color:color,valueLabel:fmtR(d[dataKey] || 0),height:20,labelWidth:28})).join("")}
     <p style="font-size:12px;color:var(--text-muted);margin:14px 0 2px">Total acumulado</p>
     <p style="font-size:16px;font-weight:700;color:${color};margin:0 0 14px">${fmtR(total)}</p>
     ${obsHtml ? `<p style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:600;">Justificativas e Observações:</p>${obsHtml}` : ""}
@@ -1090,9 +1128,9 @@ function tabCustos(mesFiltro) {
     + `<div>${sectionTitle("Comparativo Detalhado por Mês")}${costTable(data)}</div>`;
   }
 
-  const totDesc = data.reduce((a,b)=>a+b.desconto,0);
-  const totTrans = data.reduce((a,b)=>a+b.transportadora,0);
-  const totAts = data.reduce((a,b)=>a+b.ats,0);
+  const totDesc = data.reduce((a,b)=>a+(b.desconto||0),0);
+  const totTrans = data.reduce((a,b)=>a+(b.transportadora||0),0);
+  const totAts = data.reduce((a,b)=>a+(b.ats||0),0);
   const totFat = data[0]?.faturamento || 0;
   
   let singHtml = formHtml + `<div class="kpi-row">
@@ -1115,7 +1153,7 @@ function tabCustos(mesFiltro) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// TAB: PONTOS DE ATENÇÃO (DINÂMICO)
+// TAB: PONTOS DE ATENÇÃO (REATIVO DINÂMICO)
 // ─────────────────────────────────────────────────────────────────────────
 function dynamicRiskSummary() {
   const ch = mockData.chamados;
@@ -1125,15 +1163,15 @@ function dynamicRiskSummary() {
   const desl = mockData.desligamentos.find(d=>d.mes===last.mes);
   const troc = mockData.substituicoes.find(d=>d.mes===last.mes);
   const items = [];
-  if (last.percSLA < 0.7) items.push(`SLA de ${MES_FULL[last.mes]} está em ${(last.percSLA*100).toFixed(0)}% — abaixo da meta de 80%. Atenção imediata recomendada.`);
-  else if (last.percSLA >= 0.85) items.push(`SLA de ${MES_FULL[last.mes]} está saudável, em ${(last.percSLA*100).toFixed(0)}%.`);
-  if (desl && desl.perc > 0.1) items.push(`Desligamentos de ${MES_FULL[last.mes]} representam ${(desl.perc*100).toFixed(0)}% dos chamados — acima do padrão histórico.`);
-  if (troc && troc.perc > 0.18) items.push(`Trocas de equipamentos em ${MES_FULL[last.mes]} subiram para ${(troc.perc*100).toFixed(0)}% dos chamados.`);
+  if (last.percSLA && last.percSLA < 0.7) items.push(`SLA de ${MES_FULL[last.mes] || last.mes} está em ${(last.percSLA*100).toFixed(0)}% — abaixo da meta de 80%. Atenção imediata recomendada.`);
+  else if (last.percSLA && last.percSLA >= 0.85) items.push(`SLA de ${MES_FULL[last.mes] || last.mes} está saudável, em ${(last.percSLA*100).toFixed(0)}%.`);
+  if (desl && desl.perc > 0.1) items.push(`Desligamentos de ${MES_FULL[last.mes] || last.mes} representam ${(desl.perc*100).toFixed(0)}% dos chamados — acima do padrão histórico.`);
+  if (troc && troc.perc > 0.18) items.push(`Trocas de equipamentos em ${MES_FULL[last.mes] || last.mes} subiram para ${(troc.perc*100).toFixed(0)}% dos chamados.`);
   const topSintoma = mockData.sintomas[last.mes]?.[0];
-  if (topSintoma) items.push(`Principal sintoma de ${MES_FULL[last.mes]}: ${topSintoma.sintoma} (${topSintoma.perc}% dos chamados do mês).`);
+  if (topSintoma) items.push(`Principal sintoma de ${MES_FULL[last.mes] || last.mes}: ${topSintoma.sintoma} (${topSintoma.perc}% dos chamados do mês).`);
   if (!items.length) return "";
   return `<div class="card" style="border:2px solid #4f63f7;margin-bottom:24px">
-    <p class="block-label" style="margin-bottom:10px">🆕 ATUALIZAÇÃO AUTOMÁTICA — ${(MES_FULL[last.mes]||"").toUpperCase()}</p>
+    <p class="block-label" style="margin-bottom:10px">🆕 ATUALIZAÇÃO AUTOMÁTICA — ${(MES_FULL[last.mes]||last.mes).toUpperCase()}</p>
     ${items.map(t=>`<p class="diag-text" style="margin-bottom:6px">• ${esc(t)}</p>`).join("")}
   </div>`;
 }
@@ -1143,16 +1181,16 @@ function tabAtencao() {
   const last = sorted[sorted.length-1] || { mes: "Jan", percSLA: 0.8 };
   const desl = mockData.desligamentos.find(d=>d.mes===last.mes) || { desligamentos: 0, perc: 0 };
   const troc = mockData.substituicoes.find(d=>d.mes===last.mes) || { trocas: 0, perc: 0 };
-  const cost = mockData.custos.find(d=>d.mes===last.mes) || { desconto: 0, transportadora: 0, ats:0 };
+  const cost = mockData.custos.find(d=>d.mes===last.mes) || { desconto: 0, transportadora: 0, ats: 0 };
 
   const riscos = [
     { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
-      { ref:`SLA Operacional em ${MES_FULL[last.mes]} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
-      { ref:`Custo de Transportadora em ${MES_FULL[last.mes]} — ${fmtR(cost.transportadora)}`,impacto:"Pressão sobre a margem operacional direta decorrente de fretes urgentes ou reenvios logísticos.",solucao:"Negociar contratos de tabela fixa com transportadoras de rota frequente." },
-      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes]} (${desl.desligamentos} ações)`,impacto:"Redução direta de receita recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
+      { ref:`SLA Operacional em ${MES_FULL[last.mes] || last.mes} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
+      { ref:`Custo de Transportadora em ${MES_FULL[last.mes] || last.mes} — ${fmtR(cost.transportadora)}`,impacto:"Pressão sobre a margem operacional direta decorrente de fretes urgentes ou reenvios logísticos.",solucao:"Negociar contratos de tabela fixa com transportadoras de rota frequente." },
+      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução direta de receita reuniões recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
     ]},
     { cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
-      { ref:`Sintoma Recorrente em ${MES_FULL[last.mes]} (${esc(mockData.sintomas[last.mes]?.[0]?.sintoma || "Pneus")})`,impacto:"Alto volume de chamados previsíveis ocupando capacidade da assistência interna.",solucao:"Reforçar inspeção preventiva cíclica para mitigar reincidências mecânicas." },
+      { ref:`Sintoma Recorrente em ${MES_FULL[last.mes] || last.mes} (${esc(mockData.sintomas[last.mes]?.[0]?.sintoma || "Pneus")})`,impacto:"Alto volume de chamados previsíveis ocupando capacidade da assistência interna.",solucao:"Reforçar inspeção preventiva cíclica para mitigar reincidências mecânicas." },
       { ref:`Taxa de Troca de Frota — ${fmtPct(troc.perc)} das ações`,impacto:"Custos logísticos adicionais associados à movimentação de equipamentos de substituição.",solucao:"Mapear equipamentos com maior taxa de substituição direta em campo." },
     ]},
     { cor:"#16a34a",bg:"#f0fdf4",bord:"#bbf7d0",titulo:"🟢 Risco Baixo — Monitoramento Contínuo",itens:[
@@ -1203,7 +1241,7 @@ function renderHeader() {
   return `<div class="header">
     <div>
       <p class="header-title">${currentAba?.label || ''}</p>
-      <p class="header-sub">${state.mes==="Todos"?"Visão acumulada":MES_FULL[state.mes]}</p>
+      <p class="header-sub">${state.mes==="Todos"?"Visão acumulada": (MES_FULL[state.mes] || state.mes)}</p>
     </div>
     <div class="filters">
       ${meses.map(m => `<button class="filter-btn ${state.mes===m?'active':''}" data-mes="${m}">${m}</button>`).join("")}
@@ -1242,7 +1280,7 @@ function render() {
       desconto: { color:"#ef4444", formatValue:fmtR, getValue: idx => { const m=mockData.chamados[idx]?.mes; return mockData.custos.find(c=>c.mes===m)?.desconto || 0; } },
       transportadora: { color:"#f59e0b", formatValue:fmtR, getValue: idx => { const m=mockData.chamados[idx]?.mes; return mockData.custos.find(c=>c.mes===m)?.transportadora || 0; } },
       ats: { color:"#8b5cf6", formatValue:fmtR, getValue: idx => { const m=mockData.chamados[idx]?.mes; return mockData.custos.find(c=>c.mes===m)?.ats || 0; } },
-      slaCount: { color:"#22c55e", formatValue: v => `${fmt(v)} chamados`, getValue: idx => mockData.chamados[idx]?.noSLA },
+      slaCount: { color:"#22c55e", formatValue: v => `${fmt(v)} chamados`, getValue: idx => mockData.chamados[idx]?.noSLA || 0 },
     });
   }
 }
