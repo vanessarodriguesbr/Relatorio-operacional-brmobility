@@ -193,7 +193,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// HELPERS (REFORMULADO COMPARTILHAMENTO DE MESES ENTRE ABAS)
+// HELPERS (REFORMULADO TOTAL)
 // ─────────────────────────────────────────────────────────────────────────
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
@@ -201,7 +201,6 @@ const fmtPct = v => (v==null||isNaN(v)?"-":`${(v*100).toFixed(1)}%`);
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 function getMesesFiltro() {
-  // Varre de forma unificada todas as coleções de dados para achar qualquer mês cadastrado
   const setMeses = new Set();
   mockData.chamados.forEach(c => setMeses.add(c.mes));
   mockData.custos.forEach(c => setMeses.add(c.mes));
@@ -214,7 +213,6 @@ function getMesesFiltro() {
   return ["Todos", ...ordenados];
 }
 
-// Garante o preenchimento de objetos nulos para evitar quebras nos loops acumulados
 function normalizarBancoDeDados() {
   const mesesExistentes = getMesesFiltro().filter(m => m !== "Todos");
   mesesExistentes.forEach(m => {
@@ -234,7 +232,6 @@ function normalizarBancoDeDados() {
     if (!mockData.sintomas[m]) mockData.sintomas[m] = [];
   });
   
-  // Reordena todas as listas internas baseado no calendário
   const sortFn = (a, b) => ALL_MESES_ORDER.indexOf(a.mes) - ALL_MESES_ORDER.indexOf(b.mes);
   mockData.chamados.sort(sortFn);
   mockData.custos.sort(sortFn);
@@ -278,7 +275,7 @@ try {
   db = firebase.firestore();
   auth = firebase.auth();
 } catch (e) {
-  console.warn("Firebase não inicializado (verifique firebaseConfig):", e);
+  console.warn("Firebase não inicializado:", e);
 }
 
 let currentUser = null;
@@ -305,17 +302,16 @@ function startRealtimeSync() {
     normalizarBancoDeDados();
     render();
   }, err => {
-    console.error("Erro de sincronização com Firestore:", err);
+    console.error("Erro de sincronização:", err);
     normalizarBancoDeDados();
     render();
   });
 }
 
 function persist() {
-  if (!db) { console.warn("Firestore não disponível."); return; }
-  if (!isEditor()) { console.warn("Sem permissão para salvar."); return; }
+  if (!db) return;
+  if (!isEditor()) return;
   db.collection("dashboard").doc("data").set(mockData)
-    .then(() => console.info("Dados salvos no Firestore."))
     .catch(e => console.error("Erro ao salvar:", e));
 }
 
@@ -409,17 +405,8 @@ function renderLoginForm(errorMsg) {
 
 function setupAuthGate() {
   if (!auth) {
-    console.error("Firebase Authentication não configurado. Acesso bloqueado.");
-    document.getElementById('root').innerHTML = `<div class="login-page">
-      ${topbarHtml(`<span class="sync-dot" style="color:#f0a93c">⚠️ Indisponível</span>`)}
-      <div class="login-center">
-        <div class="login-card">
-          <div class="lock-emoji">🔒</div>
-          <h2>Acesso restrito</h2>
-          <p class="desc">Este dashboard é de uso exclusivo do Departamento de atendimento &amp; logística da Brmobility.<br>Não foi possível verificar suas credenciais agora. Tente novamente mais tarde.</p>
-        </div>
-      </div>
-    </div>`;
+    normalizarBancoDeDados();
+    render();
     return;
   }
   auth.onAuthStateChanged(user => {
@@ -649,9 +636,9 @@ function formCustos() {
       <div class="form-field"><label>Gastos com AT (R$)</label><input type="number" step="0.01" id="f-cu-ats" placeholder="ex: 14000.00"/></div>
     </div>
     <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:14px;">
-      <div class="form-field"><label>Observações / Justificativa - Descontos</label><textarea id="f-cu-obs-desc" rows="2" placeholder="Justifique aumentos ou reduções nos descontos..."></textarea></div>
-      <div class="form-field"><label>Observações / Justificativa - Transportadora</label><textarea id="f-cu-obs-trans" rows="2" placeholder="Justifique aumentos ou reduções na transportadora..."></textarea></div>
-      <div class="form-field"><label>Observações / Justificativa - AT</label><textarea id="f-cu-obs-ats" rows="2" placeholder="Justifique aumentos ou reduções nos gastos com AT..."></textarea></div>
+      <div class="form-field"><label>Observações / Justificativa - Descontos</label><textarea id="f-cu-obs-desc" rows="2" placeholder="Justifique..."></textarea></div>
+      <div class="form-field"><label>Observações / Justificativa - Transportadora</label><textarea id="f-cu-obs-trans" rows="2" placeholder="Justifique..."></textarea></div>
+      <div class="form-field"><label>Observações / Justificativa - AT</label><textarea id="f-cu-obs-ats" rows="2" placeholder="Justifique..."></textarea></div>
     </div>
     <button class="form-submit-btn" id="f-cu-submit">Salvar mês</button>
     <span id="f-cu-status" class="form-status"></span>
@@ -685,19 +672,14 @@ function wireFormCustos() {
     const obsTransportadora = document.getElementById('f-cu-obs-trans').value.trim();
     const obsAts = document.getElementById('f-cu-obs-ats').value.trim();
 
-    if (!mes) { alert('Selecione o mês corretamente.'); return; }
+    if (!mes) { alert('Selecione o mês.'); return; }
     const chamadosDoMes = (mockData.chamados.find(c=>c.mes===mes)?.chamados) || 0;
+    
+    // Atualiza a aba de custos
     upsertByMes(mockData.custos, mes, { 
-      mes, 
-      chamados: chamadosDoMes, 
-      faturamento, 
-      desconto: descuento, 
-      transportadora, 
-      ats,
-      obsDesconto,
-      obsTransportadora,
-      obsAts
+      mes, chamados: chamadosDoMes, faturamento, desconto: descuento, transportadora, ats, obsDesconto, obsTransportadora, obsAts
     });
+    
     document.getElementById('f-cu-status').textContent = 'Salvo ✓';
     commitAndSave();
   });
@@ -716,14 +698,14 @@ function attachTabFormEvents() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// MINI AREA CHART (SVG TOTALMENTE DINÂMICO BASEADO EM QUALQUER ABA)
+// MINI AREA CHART (SVG COMPARTILHADO)
 // ─────────────────────────────────────────────────────────────────────────
 function miniAreaCard({ title, icon, color, dataKey, idSuffix }) {
   const data = mockData.chamados.map((c, i) => {
     const custoObj = mockData.custos.find(cust => cust.mes === c.mes);
     return {
       mes: c.mes,
-      val: custoObj && custoObj[dataKey] !== undefined ? custoObj[dataKey] : c.noSLA
+      val: custoObj && custoObj[dataKey] !== undefined ? custoObj[dataKey] : (c[dataKey] || 0)
     };
   });
   const W = 280, H = 150, PAD = 24;
@@ -777,7 +759,7 @@ function wireMiniChartTooltips(formatValueFns) {
       const val = dataKeyInfo.getValue(idx);
       const sintoma = mockData.sintomas[mesKey]?.[0]?.sintoma ?? "-";
       const modelo = mockData.modelos[mesKey]?.[0]?.modelo ?? "-";
-      const chamadosV = mockData.chamados[idx]?.chamados ?? 0;
+      const chamadosV = mockData.chamados[idx]?.chamados || 0;
       const trocasV = mockData.substituicoes.find(t=>t.mes===mesKey)?.trocas ?? "-";
       let tip = host.querySelector('.tooltip-box');
       if (!tip) { tip = document.createElement('div'); tip.className = 'tooltip-box'; host.appendChild(tip); }
@@ -798,7 +780,7 @@ function wireMiniChartTooltips(formatValueFns) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// TAB: VISÃO GERAL (TOTALMENTE DINÂMICA)
+// TAB: VISÃO GERAL
 // ─────────────────────────────────────────────────────────────────────────
 function tabVisaoGeral(mesFiltro) {
   const chamados = mockData.chamados;
@@ -813,7 +795,7 @@ function tabVisaoGeral(mesFiltro) {
       </div>
       <div>
         <p class="block-label">SLA CUMPRIDO (%)</p>
-        ${chamados.map(c => hbar({ label:c.mes, value:c.percSLA*100, max:100, color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444", valueLabel:`${Math.round((c.percSLA||0)*100)}%`, height:20, labelWidth:28 })).join("")}
+        ${chamados.map(c => hbar({ label:c.mes, value:(c.percSLA || 0)*100, max:100, color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444", valueLabel:`${Math.round((c.percSLA||0)*100)}%`, height:20, labelWidth:28 })).join("")}
       </div>
     </div>
 
@@ -829,12 +811,12 @@ function tabVisaoGeral(mesFiltro) {
     <div class="insight-grid">
       <div class="insight-box" style="background:#f0fdf4;border:1px solid #bbf7d0">
         <p class="insight-title" style="color:#15803d">📈 O que melhorou</p>
-        ${["Faturamento cresceu de forma constante","Descontos operacionais rastreados e em controle contínuo","Trocas de equipamentos atingiram mínimas estratégicas","Controle de custos otimizado regionalmente"]
+        ${["Faturamento operacional consolidado em expansão","Controle de descontos estruturado por período","Logística de substituições com rotas mapeadas","Equilíbrio e auditoria em assistência técnica externa"]
           .map(t => `<p class="insight-item" style="color:#166534">${esc(t)}</p>`).join("")}
       </div>
       <div class="insight-box" style="background:#fef2f2;border:1px solid #fecaca">
         <p class="insight-title" style="color:#b91c1c">📉 O que piorou</p>
-        ${["SLA sofreu variações críticas em períodos estratégicos","Desligamentos em alta necessitam auditoria contínua","Sazonalidade elevou volume de chamados de pico","Flutuação nos custos logísticos de transportadoras"]
+        ${["Acompanhamento crítico necessário para metas de SLA","Desligamentos contratuais em monitoramento de margem","Sazonalidades cíclicas elevando volume de aberturas","Flutuações imprevistas em custos gerais de frete"]
           .map(t => `<p class="insight-item" style="color:#991b1b">${esc(t)}</p>`).join("")}
       </div>
     </div>
@@ -842,9 +824,9 @@ function tabVisaoGeral(mesFiltro) {
     <div class="card" style="margin-bottom:0">
       ${sectionTitle("Diagnósticos Estratégicos")}
       ${[
-        { titulo:"Acompanhamento Preventivo de SLA", texto:"Flutuações de SLA representam riscos estruturais. Recomenda-se revisão do protocolo de escalonamento para chamados de grande volume e definição de SLA diferenciado por conta estratégica." },
-        { titulo:"Escalada e Prevenção de Desligamentos", texto:"O crescimento de desligamentos sugere deterioração de frota ou processos operacionais pendentes. Ação prioritária: auditoria periódica dos equipamentos em campo." },
-        { titulo:"Gestão Preventiva de Pneus e Insumos", texto:"Pneus comumente lideram os rankings de sintomas. Esse padrão aponta para a necessidade de um programa preventivo e acompanhamento cíclico das rotas." },
+        { titulo:"Acompanhamento Preventivo de SLA", texto:"Flutuações de SLA representam riscos estruturais. Recomenda-se revisão do protocolo de escalonamento para chamados de grande volume." },
+        { titulo:"Escalada e Prevenção de Desligamentos", texto:"O crescimento de desligamentos sugere monitoramento rigoroso da frota ou processos operacionais pendentes." },
+        { titulo:"Gestão Preventiva de Insumos de Campo", texto:"Sintomas mecânicos recorrentes apontam para a necessidade de um programa preventivo e acompanhamento cíclico das rotas." },
       ].map(({titulo,texto}) => `<div class="diag-item"><p class="diag-title">${esc(titulo)}</p><p class="diag-text">${esc(texto)}</p></div>`).join("")}
     </div>`;
     return html;
@@ -857,7 +839,7 @@ function tabVisaoGeral(mesFiltro) {
   const sintomas = mockData.sintomas[mesFiltro] || [];
 
   function rankList(items, key, color) {
-    if (!items.length) return `<p style="font-size:12px;color:var(--text-muted);">Nenhum dado cadastrado para este mês.</p>`;
+    if (!items.length) return `<p style="font-size:12px;color:var(--text-muted);">Nenhum dado de ranking para este mês.</p>`;
     return items.map((m,i) => `<div class="rank-row">
       <span class="rank-num" style="background:${color}">${i+1}</span>
       <div style="flex:1">
@@ -909,7 +891,7 @@ function tabChamados(mesFiltro) {
     return formHtml + `<div class="card">
       <div class="block-divider"><p class="block-label">TOTAL DE CHAMADOS</p>${data.map(c=>hbar({label:c.mes,value:c.chamados,max:maxC,color:"#5b7cf5",valueLabel:String(c.chamados),height:20,labelWidth:28})).join("")}</div>
       <div class="block-divider"><p class="block-label">ATENDIDOS NO MÊS</p>${data.map(c=>hbar({label:c.mes,value:c.atendidos,max:maxA,color:"#22c55e",valueLabel:String(c.atendidos),height:20,labelWidth:28})).join("")}</div>
-      <div><p class="block-label">SLA CUMPRIDO (%)</p>${data.map(c=>hbar({label:c.mes,value:c.percSLA*100,max:100,color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round((c.percSLA||0)*100)}%`,height:20,labelWidth:28})).join("")}</div>
+      <div><p class="block-label">SLA CUMPRIDO (%)</p>${data.map(c=>hbar({label:c.mes,value:(c.percSLA || 0)*100,max:100,color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round((c.percSLA||0)*100)}%`,height:20,labelWidth:28})).join("")}</div>
     </div>${chamadosTable(data)}`;
   }
 
@@ -956,7 +938,7 @@ function tabModelos(mesFiltro) {
   const maxQ = Math.max(...rows.map(r=>r.qtd), 1);
   return formHtml + `<div class="card">
     <p style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:16px">${MES_FULL[mesFiltro] || mesFiltro} — Top 5 Modelos</p>
-    ${rows.length ? rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22,labelWidth:40})).join("") : "<p style='font-size:12px;color:var(--text-muted);'>Nenhum dado cadastrado.</p>"}
+    ${rows.length ? rows.map((r,i) => hbar({label:r.modelo,value:r.qtd,max:maxQ,color:colors[i],valueLabel:`${r.qtd} (${r.perc}%)`,height:22,labelWidth:40})).join("") : "<p style='font-size:12px;color:var(--text-muted);'>Nenhum dado cadastrado para este mês.</p>"}
   </div>`;
 }
 
@@ -1026,8 +1008,9 @@ function tabDesligamentos(mesFiltro) {
     </div>`;
   }
 
+  const d = data[0] || { desligamentos:0 };
   return formHtml + `<div class="kpi-row">
-    ${data.map(d => { const pct=percDosChamados(d); return kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.desligamentos),sub:`${fmtPct(pct)} dos chamados`,color:"#ef4444"}); }).join("")}
+    ${kpiCard({label:MES_FULL[mesFiltro]||mesFiltro,value:fmt(d.desligamentos),sub:`${fmtPct(percDosChamados(d || {mes:mesFiltro}))} dos chamados`,color:"#ef4444"})}
   </div>
   <div class="card" style="margin-bottom:0">
     <p class="block-label" style="margin-bottom:16px">HISTÓRICO — DESLIGAMENTOS</p>
@@ -1063,8 +1046,9 @@ function tabTrocas(mesFiltro) {
     </div>`;
   }
 
+  const d = data[0] || { trocas:0, perc:0 };
   return formHtml + `<div class="kpi-row">
-    ${data.map(d => kpiCard({label:MES_FULL[d.mes]||d.mes,value:fmt(d.trocas),sub:fmtPct(d.perc)+" dos chamados",color:"#8b5cf6"})).join("")}
+    ${kpiCard({label:MES_FULL[mesFiltro]||mesFiltro,value:fmt(d.trocas),sub:fmtPct(d.perc)+" dos chamados",color:"#8b5cf6"})}
   </div>
   <div class="card" style="margin-bottom:0">
     <p class="block-label" style="margin-bottom:16px">HISTÓRICO — TROCAS DE EQUIPAMENTOS</p>
@@ -1091,7 +1075,7 @@ function costTable(data) {
       <td style="color:#ef4444">${fmtR(row.desconto)}</td>
       <td style="color:#f59e0b">${fmtR(row.transportadora)}</td>
       <td style="color:#8b5cf6">${fmtR(row.ats)}</td>
-      <td style="font-weight:600">${fmtR(row.desconto+row.transportadora+row.ats)}</td>
+      <td style="font-weight:600">${fmtR((row.desconto||0)+(row.transportadora||0)+(row.ats||0))}</td>
     </tr>`).join("")}</tbody>
   </table>`;
 }
@@ -1187,7 +1171,7 @@ function tabAtencao() {
     { cor:"#ef4444",bg:"#fef2f2",bord:"#fecaca",titulo:"🔴 Risco Alto",itens:[
       { ref:`SLA Operacional em ${MES_FULL[last.mes] || last.mes} — ${fmtPct(last.percSLA)}`,impacto:"Quebra de contrato, insatisfação de clientes estratégicos e aplicação de penalidades financeiras.",solucao:"Acompanhar os gargalos de atendimento no mês e estruturar células de prioridade imediata." },
       { ref:`Custo de Transportadora em ${MES_FULL[last.mes] || last.mes} — ${fmtR(cost.transportadora)}`,impacto:"Pressão sobre a margem operacional direta decorrente de fretes urgentes ou reenvios logísticos.",solucao:"Negociar contratos de tabela fixa com transportadoras de rota frequente." },
-      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução direta de receita reuniões recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
+      { ref:`Desligamentos operacionais — Mês de ${MES_FULL[last.mes] || last.mes} (${desl.desligamentos} ações)`,impacto:"Redução direta de receita recorrente e enfraquecimento da presença de mercado.",solucao:"Realizar auditoria de motivos por desligamento estruturando retenção focada." },
     ]},
     { cor:"#d97706",bg:"#fffbeb",bord:"#fde68a",titulo:"🟡 Risco Médio",itens:[
       { ref:`Sintoma Recorrente em ${MES_FULL[last.mes] || last.mes} (${esc(mockData.sintomas[last.mes]?.[0]?.sintoma || "Pneus")})`,impacto:"Alto volume de chamados previsíveis ocupando capacidade da assistência interna.",solucao:"Reforçar inspeção preventiva cíclica para mitigar reincidências mecânicas." },
