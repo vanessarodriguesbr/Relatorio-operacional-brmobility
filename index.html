@@ -204,20 +204,20 @@ function getMesesFiltro() {
   const setMeses = new Set();
   
   if (Array.isArray(mockData.chamados)) {
-    mockData.chamados.forEach(c => { if(c && (c.chamados > 0 || c.atendidos > 0)) setMeses.add(c.mes); });
+    mockData.chamados.forEach(c => { if(c && (Number(c.chamados) > 0 || Number(c.atendidos) > 0)) setMeses.add(c.mes); });
   }
   if (Array.isArray(mockData.custos)) {
     mockData.custos.forEach(c => { 
-      if(c && (c.faturamento > 0 || c.desconto > 0 || c.transportadora > 0 || c.ats > 0 || c.obsDesconto || c.obsTransportadora || c.obsAts)) {
+      if(c && (Number(c.faturamento) > 0 || Number(c.desconto) > 0 || Number(c.transportadora) > 0 || Number(c.ats) > 0 || c.obsDesconto || c.obsTransportadora || c.obsAts)) {
         setMeses.add(c.mes); 
       }
     });
   }
   if (Array.isArray(mockData.desligamentos)) {
-    mockData.desligamentos.forEach(d => { if(d && d.desligamentos > 0) setMeses.add(d.mes); });
+    mockData.desligamentos.forEach(d => { if(d && Number(d.desligamentos) > 0) setMeses.add(d.mes); });
   }
   if (Array.isArray(mockData.substituicoes)) {
-    mockData.substituicoes.forEach(s => { if(s && s.trocas > 0) setMeses.add(s.mes); });
+    mockData.substituicoes.forEach(s => { if(s && Number(s.trocas) > 0) setMeses.add(s.mes); });
   }
   
   if (mockData.modelos) {
@@ -274,6 +274,7 @@ function monthSelectHtml(id) {
 }
 
 let state = { aba: "visao", mes: "Todos", dark: true };
+let isLocalUpdate = false;
 
 // ─────────────────────────────────────────────────────────────────────────
 // FIREBASE
@@ -319,6 +320,7 @@ function startRealtimeSync() {
   if (unsubscribeSnapshot) unsubscribeSnapshot();
   
   unsubscribeSnapshot = db.collection("dashboard").doc("data").onSnapshot(doc => {
+    if (isLocalUpdate) return;
     if (doc.exists) {
       const remote = doc.data();
       mockData.chamados = remote.chamados || mockData.chamados;
@@ -341,13 +343,19 @@ function startRealtimeSync() {
 
 function persist() {
   if (!db || !isEditor()) return;
+  isLocalUpdate = true;
   db.collection("dashboard").doc("data").set(mockData)
+    .then(() => {
+      setTimeout(() => { isLocalUpdate = false; }, 1000);
+    })
     .catch(e => {
       console.error("Erro ao salvar no Firestore:", e);
+      isLocalUpdate = false;
     });
 }
 
 function commitAndSave() {
+  normalizarBancoDeDados();
   persist();
   render();
 }
