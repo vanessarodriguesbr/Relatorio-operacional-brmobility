@@ -140,11 +140,11 @@
 // ─────────────────────────────────────────────────────────────────────────
 let mockData = {
   chamados: [
-    { mes: "Jan", chamados: 184, atendidos: 171, percAtendidos: 0.93, noSLA: 155, percSLA: 0.84, obsChamados: "" },
-    { mes: "Fev", chamados: 156, atendidos: 128, percAtendidos: 0.82, noSLA: 133, percSLA: 0.85, obsChamados: "" },
-    { mes: "Mar", chamados: 183, atendidos: 148, percAtendidos: 0.81, noSLA: 130, percSLA: 0.71, obsChamados: "" },
-    { mes: "Abr", chamados: 213, atendidos: 159, percAtendidos: 0.74, noSLA: 121, percSLA: 0.56, obsChamados: "Atrasos na logística que impactaram no SLA de atendimento, ausência de insumos e veículos decorrentes do atraso na importação." },
-    { mes: "Mai", chamados: 168, atendidos: 134, percAtendidos: 0.80, noSLA: 123, percSLA: 0.73, obsChamados: "" },
+    { mes: "Jan", chamados: 184, atendidos: 171, percAtendidos: 0.93, noSLA: 155, percSLA: 0.84 },
+    { mes: "Fev", chamados: 156, atendidos: 128, percAtendidos: 0.82, noSLA: 133, percSLA: 0.85 },
+    { mes: "Mar", chamados: 183, atendidos: 148, percAtendidos: 0.81, noSLA: 130, percSLA: 0.71 },
+    { mes: "Abr", chamados: 213, atendidos: 159, percAtendidos: 0.74, noSLA: 121, percSLA: 0.56 },
+    { mes: "Mai", chamados: 168, atendidos: 134, percAtendidos: 0.80, noSLA: 123, percSLA: 0.73 },
   ],
   modelos: {
     Jan: [{ pos:"1º",modelo:"S9",qtd:41,perc:22},{pos:"2º",modelo:"S8",qtd:38,perc:21},{pos:"3º",modelo:"I2",qtd:21,perc:11},{pos:"4º",modelo:"S10",qtd:20,perc:11},{pos:"5º",modelo:"BR8",qtd:15,perc:8}],
@@ -198,13 +198,13 @@ const NAV = [
 const fmt = v => (v==null||isNaN(v)?"-":v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}));
 const fmtR = v => (v==null||isNaN(v)?"-":`R$ ${v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`);
 const fmtPct = v => (v==null||isNaN(v)?"-":`${(v*100).toFixed(1)}%`);
-const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 function getMesesFiltro() {
   const setMeses = new Set();
   
   if (Array.isArray(mockData.chamados)) {
-    mockData.chamados.forEach(c => { if(c && (Number(c.chamados) > 0 || Number(c.atendidos) > 0 || c.obsChamados)) setMeses.add(c.mes); });
+    mockData.chamados.forEach(c => { if(c && (Number(c.chamados) > 0 || Number(c.atendidos) > 0)) setMeses.add(c.mes); });
   }
   if (Array.isArray(mockData.custos)) {
     mockData.custos.forEach(c => { 
@@ -242,7 +242,7 @@ function normalizarBancoDeDados() {
   ALL_MESES_ORDER.forEach(m => {
     let chExistente = mockData.chamados.find(c => c && c.mes === m);
     if (!chExistente) {
-      mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0, obsChamados: "" });
+      mockData.chamados.push({ mes: m, chamados: 0, atendidos: 0, percAtendidos: 0, noSLA: 0, percSLA: 0 });
     }
     let custExistente = mockData.custos.find(c => c && c.mes === m);
     if (!custExistente) {
@@ -471,21 +471,7 @@ function setupAuthGate() {
     render();
     return;
   }
-
-  let authResolved = false;
-
-  const timeoutId = setTimeout(() => {
-    if (!authResolved) {
-      authResolved = true;
-      renderLoginGate();
-    }
-  }, 1200);
-
   auth.onAuthStateChanged(user => {
-    if (authResolved) return;
-    authResolved = true;
-    clearTimeout(timeoutId);
-
     if (user) {
       currentUser = user;
       if (isViewer()) {
@@ -537,7 +523,7 @@ function kpiCard({ label, value, sub, color="#5b7cf5" }) {
 function sectionTitle(txt) { return `<h3 class="section-title">${esc(txt)}</h3>`; }
 
 // ─────────────────────────────────────────────────────────────────────────
-// FORMULÁRIOS DE EDIÇÃO (CORRIGIDO CAMPO DE OBSERVAÇÕES DE CHAMADOS)
+// FORMULÁRIOS DE EDIÇÃO
 // ─────────────────────────────────────────────────────────────────────────
 function formChamados() {
   return `<div class="card form-card">
@@ -549,10 +535,6 @@ function formChamados() {
       <div class="form-field"><label>% Atendidos (sobre total)</label><input type="number" step="0.1" id="f-ch-percatend" placeholder="sugestão automática"/></div>
       <div class="form-field"><label>Atendidos no SLA</label><input type="number" id="f-ch-nosla" placeholder="ex: 130"/></div>
       <div class="form-field"><label>% SLA (sobre total)</label><input type="number" step="0.1" id="f-ch-percsla" placeholder="sugestão automática"/></div>
-      <div class="form-field" style="grid-column: 1 / -1; margin-top: 4px;">
-        <label>Observações / Justificativa</label>
-        <textarea id="f-ch-obs" rows="2" placeholder="Justifique oscilações de resultados, falhas de SLA, atrasos operacionais..."></textarea>
-      </div>
     </div>
     <button class="form-submit-btn" id="f-ch-submit">Salvar mês</button>
     <span id="f-ch-status" class="form-status"></span>
@@ -560,28 +542,8 @@ function formChamados() {
 }
 function wireFormChamados() {
   const btn = document.getElementById('f-ch-submit'); if (!btn) return;
-  const mesSel=document.getElementById('f-ch-mes'), chIn=document.getElementById('f-ch-chamados'), atIn=document.getElementById('f-ch-atendidos'),
-        slaIn=document.getElementById('f-ch-nosla'), paIn=document.getElementById('f-ch-percatend'), psIn=document.getElementById('f-ch-percsla'),
-        obsIn=document.getElementById('f-ch-obs');
-
-  function carregarChamadoExistente() {
-    const mes = mesSel.value;
-    const item = mockData.chamados.find(c => c && c.mes === mes);
-    if (item) {
-      chIn.value = item.chamados || "";
-      atIn.value = item.atendidos || "";
-      slaIn.value = item.noSLA || "";
-      paIn.value = item.percAtendidos ? (item.percAtendidos * 100).toFixed(1) : "";
-      psIn.value = item.percSLA ? (item.percSLA * 100).toFixed(1) : "";
-      obsIn.value = item.obsChamados || "";
-    } else {
-      chIn.value = ""; atIn.value = ""; slaIn.value = ""; paIn.value = ""; psIn.value = ""; obsIn.value = "";
-    }
-  }
-
-  mesSel.addEventListener('change', carregarChamadoExistente);
-  carregarChamadoExistente();
-
+  const chIn=document.getElementById('f-ch-chamados'), atIn=document.getElementById('f-ch-atendidos'),
+        slaIn=document.getElementById('f-ch-nosla'), paIn=document.getElementById('f-ch-percatend'), psIn=document.getElementById('f-ch-percsla');
   function suggest() {
     const ch=parseFloat(chIn.value), at=parseFloat(atIn.value), sl=parseFloat(slaIn.value);
     if (ch>0) {
@@ -591,15 +553,12 @@ function wireFormChamados() {
   }
   [chIn,atIn,slaIn].forEach(el => el.addEventListener('input', suggest));
   [paIn,psIn].forEach(el => el.addEventListener('input', () => { el.dataset.touched = "1"; }));
-
   btn.addEventListener('click', () => {
-    const mes = mesSel.value;
+    const mes = document.getElementById('f-ch-mes').value;
     const chamados = parseFloat(chIn.value) || 0, atendidos = parseFloat(atIn.value) || 0, noSLA = parseFloat(slaIn.value) || 0;
     const percAtendidos = (parseFloat(paIn.value) || 0)/100, percSLA = (parseFloat(psIn.value) || 0)/100;
-    const obsChamados = obsIn.value.trim();
-
     if (!mes) { alert('Selecione o mês.'); return; }
-    upsertByMes(mockData.chamados, mes, { mes, chamados, atendidos, percAtendidos, noSLA, percSLA, obsChamados });
+    upsertByMes(mockData.chamados, mes, { mes, chamados, atendidos, percAtendidos, noSLA, percSLA });
     document.getElementById('f-ch-status').textContent = 'Salvo ✓';
     commitAndSave();
   });
@@ -1001,48 +960,19 @@ function tabChamados(mesFiltro) {
   const formHtml = isEditor() ? formChamados() : "";
 
   if (mesFiltro === "Todos") {
-    const obsChamadosList = data.map(d => {
-      if (d && d.obsChamados) {
-        return `<div style="border-left:3px solid #dc2626;padding-left:12px;margin-top:10px;margin-bottom:10px;">
-          <p style="font-size:12px;color:var(--text-primary);margin:0;line-height:1.6"><b>${d.mes}:</b> ${esc(d.obsChamados)}</p>
-        </div>`;
-      }
-      return "";
-    }).join("");
-
     return formHtml + `<div class="card">
       <div class="block-divider"><p class="block-label">TOTAL DE CHAMADOS</p>${data.map(c=>hbar({label:c.mes,value:c.chamados,max:maxC,color:"#5b7cf5",valueLabel:String(c.chamados),height:20,labelWidth:28})).join("")}</div>
-      <div class="block-divider"><p class="block-label">ATENDIDOS NO MÊS</p>${data.map(c=>hbar({label:c.atendidos?c.mes:c.mes},value:c.atendidos,max:maxA,color:"#22c55e",valueLabel:String(c.atendidos),height:20,labelWidth:28})).join("")}</div>
+      <div class="block-divider"><p class="block-label">ATENDIDOS NO MÊS</p>${data.map(c=>hbar({label:c.mes,value:c.atendidos,max:maxA,color:"#22c55e",valueLabel:String(c.atendidos),height:20,labelWidth:28})).join("")}</div>
       <div><p class="block-label">SLA CUMPRIDO (%)</p>${data.map(c=>hbar({label:c.mes,value:(c.percSLA || 0)*100,max:100,color:c.percSLA&&c.percSLA>=0.8?"#22c55e":c.percSLA&&c.percSLA>=0.7?"#f97316":"#ef4444",valueLabel:`${Math.round((c.percSLA||0)*100)}%`,height:20,labelWidth:28})).join("")}</div>
-    </div>
-    <div class="card">
-      ${chamadosTable(data)}
-      ${obsChamadosList ? `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--card-border);">
-        <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Justificativas e Observações:</p>
-        ${obsChamadosList}
-      </div>` : ""}
-    </div>`;
+    </div>${chamadosTable(data)}`;
   }
 
-  const row = data[0];
-  let singHtml = formHtml + `<div class="kpi-row">
-    ${data.map(r => kpiCard({label:"Chamados",value:fmt(r.chamados),color:"#5b7cf5"})
-      + kpiCard({label:"Atendidos",value:fmt(r.atendidos),sub:fmtPct(r.percAtendidos),color:"#22c55e"})
-      + kpiCard({label:"SLA",value:fmtPct(r.percSLA),color:r.percSLA>=0.8?"#22c55e":r.percSLA>=0.7?"#f97316":"#ef4444"})
-      + kpiCard({label:"No SLA",value:fmt(r.noSLA),color:"#8b5cf6"})).join("")}
-  </div><div class="card">${chamadosTable(data)}`;
-
-  if (row && row.obsChamados) {
-    singHtml += `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--card-border);">
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Justificativas e Observações:</p>
-      <div style="border-left:3px solid #dc2626;padding-left:12px;margin-top:6px;">
-        <p style="font-size:12px;color:var(--text-primary);margin:0;line-height:1.6"><b>${row.mes}:</b> ${esc(row.obsChamados)}</p>
-      </div>
-    </div>`;
-  }
-  singHtml += `</div>`;
-
-  return singHtml;
+  return formHtml + `<div class="kpi-row">
+    ${data.map(row => kpiCard({label:"Chamados",value:fmt(row.chamados),color:"#5b7cf5"})
+      + kpiCard({label:"Atendidos",value:fmt(row.atendidos),sub:fmtPct(row.percAtendidos),color:"#22c55e"})
+      + kpiCard({label:"SLA",value:fmtPct(row.percSLA),color:row.percSLA>=0.8?"#22c55e":row.percSLA>=0.7?"#f97316":"#ef4444"})
+      + kpiCard({label:"No SLA",value:fmt(row.noSLA),color:"#8b5cf6"})).join("")}
+  </div>${chamadosTable(data)}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
